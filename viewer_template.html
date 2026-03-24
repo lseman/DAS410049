@@ -1,0 +1,1036 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>B&amp;B Interactive Trace</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:ital,wght@0,300;0,400;0,600;1,400&family=Syne:wght@700;800&display=swap" rel="stylesheet">
+<style>
+/* ── tokens ── */
+:root{
+  --bg:#080c12; --s1:#0e1620; --s2:#141e2e; --s3:#1a2840; --bdr:#1e3248;
+  --txt:#b0c4d8; --dim:#4a6580; --dim2:#2d4460;
+  --amb:#e8a020; --amb-d:#4a3000;
+  --tel:#00c4a0; --tel-d:#063a26;
+  --red:#e83a5a; --red-d:#3a0010;
+  --org:#e07030; --org-d:#3a1800;
+  --blu:#38aadc; --blu-d:#0c3060;
+}
+*{ box-sizing:border-box; margin:0; padding:0; }
+
+body{
+  font-family:'IBM Plex Mono',monospace;
+  background:var(--bg); color:var(--txt);
+  height:100vh; display:flex; flex-direction:column; overflow:hidden;
+}
+/* scanlines */
+body::after{
+  content:''; position:fixed; inset:0; pointer-events:none; z-index:998;
+  background:repeating-linear-gradient(0deg,transparent,transparent 2px,
+    rgba(0,0,0,.035) 2px,rgba(0,0,0,.035) 4px);
+}
+
+/* ── header ── */
+header{
+  flex-shrink:0; background:var(--s1); border-bottom:1px solid var(--bdr);
+  padding:9px 20px; display:flex; align-items:center; gap:14px;
+}
+.htit{
+  font-family:'Syne',sans-serif; font-size:1.1rem; font-weight:800;
+  color:#fff; letter-spacing:-.02em; white-space:nowrap;
+}
+.htit span{ color:var(--amb); }
+.hprob{
+  font-size:.66rem; color:var(--dim);
+  border-left:1px solid var(--bdr); padding-left:13px; line-height:1.7;
+}
+.hprob b{ color:var(--txt); }
+.hstrat{
+  margin-left:auto; font-size:.63rem; color:var(--dim);
+  border:1px solid var(--bdr); padding:2px 10px; border-radius:3px;
+  white-space:nowrap;
+}
+
+/* ── main layout ── */
+.layout{ flex:1; display:flex; min-height:0; }
+
+/* ── tree panel ── */
+.tree-panel{
+  flex:1; position:relative; overflow:hidden;
+  border-right:1px solid var(--bdr);
+  background:
+    radial-gradient(ellipse 60% 50% at 20% 80%,rgba(0,196,160,.025),transparent 60%),
+    radial-gradient(ellipse 60% 50% at 80% 20%,rgba(232,160,32,.025),transparent 60%);
+  cursor:grab;
+}
+.tree-panel.panning{ cursor:grabbing; }
+.tree-panel.panning *{ user-select:none; }
+
+/* zoom controls overlay */
+.zoom-bar{
+  position:absolute; bottom:12px; left:12px; z-index:10;
+  display:flex; align-items:center; gap:5px;
+}
+.zbtn{
+  background:var(--s2); border:1px solid var(--bdr); color:var(--dim);
+  font-family:'IBM Plex Mono',monospace; font-size:.75rem;
+  width:26px; height:26px; border-radius:3px; cursor:pointer;
+  display:flex; align-items:center; justify-content:center;
+  transition:all .1s;
+}
+.zbtn:hover{ border-color:var(--amb); color:var(--amb); }
+.zlbl{
+  font-size:.60rem; color:var(--dim2);
+  background:var(--s2); border:1px solid var(--bdr);
+  padding:3px 7px; border-radius:3px; min-width:46px; text-align:center;
+}
+.zoom-hint{
+  position:absolute; top:10px; left:12px; z-index:10;
+  font-size:.57rem; color:var(--dim2); letter-spacing:.08em;
+}
+
+/* the SVG pans/zooms via a transform on #vp group */
+#treesvg{ display:block; width:100%; height:100%; }
+
+/* ── node tooltip popup ── */
+#tooltip{
+  position:absolute; z-index:100;
+  background:var(--s1); border:1px solid var(--bdr);
+  border-radius:5px; padding:0; min-width:220px; max-width:280px;
+  box-shadow: 0 8px 32px rgba(0,0,0,.6);
+  pointer-events:none; opacity:0;
+  transition: opacity .15s;
+  overflow:hidden;
+}
+#tooltip.show{ opacity:1; pointer-events:auto; }
+.tt-hdr{
+  padding:7px 11px; font-size:.62rem; font-weight:600;
+  letter-spacing:.1em; text-transform:uppercase;
+  border-bottom:1px solid var(--bdr);
+}
+.tt-body{
+  padding:9px 11px; font-size:.70rem; line-height:1.85;
+  display:grid; grid-template-columns:auto 1fr; gap:3px 10px;
+}
+.tt-k{ color:var(--dim); }
+.tt-v{ color:var(--txt); }
+.tt-z{ color:var(--amb); font-weight:600; }
+.tt-full{ grid-column:1/-1; }
+.tt-close{
+  position:absolute; top:6px; right:8px;
+  background:none; border:none; color:var(--dim);
+  font-size:.9rem; cursor:pointer; padding:2px 5px; line-height:1;
+}
+.tt-close:hover{ color:var(--txt); }
+.tt-jump{
+  display:block; margin:8px 11px 10px;
+  background:var(--s3); border:1px solid var(--bdr);
+  color:var(--dim); font-family:'IBM Plex Mono',monospace;
+  font-size:.65rem; padding:4px 10px; border-radius:3px;
+  cursor:pointer; text-align:center; transition:all .12s;
+}
+.tt-jump:hover{ border-color:var(--amb); color:var(--amb); }
+
+/* ── info panel ── */
+.info{
+  width:312px; flex-shrink:0; display:flex; flex-direction:column;
+  overflow-y:auto; background:var(--s1);
+}
+.shdr{
+  padding:10px 14px 7px; border-bottom:1px solid var(--bdr);
+  display:flex; align-items:center; gap:7px; flex-wrap:wrap;
+}
+.bdg{
+  font-size:.57rem; font-weight:600; letter-spacing:.12em;
+  text-transform:uppercase; padding:2px 8px; border-radius:2px; white-space:nowrap;
+}
+.b-st{ background:var(--s3); color:var(--dim); }
+.b-lp{ background:var(--blu-d); color:var(--blu); }
+.b-br{ background:var(--amb-d); color:var(--amb); }
+.b-it{ background:var(--tel-d); color:var(--tel); }
+.b-if{ background:var(--red-d); color:var(--red); }
+.b-bd{ background:var(--org-d); color:var(--org); }
+.b-dn{ background:var(--tel-d); color:var(--tel); }
+.snum{ font-size:.61rem; color:var(--dim); margin-left:auto; }
+.sdesc{
+  padding:10px 14px; font-size:.72rem; line-height:1.9; color:var(--txt);
+  border-bottom:1px solid var(--bdr); min-height:66px;
+}
+.sdesc b{ color:#fff; }
+.ncard{
+  margin:8px; background:var(--s2);
+  border:1px solid var(--bdr); border-radius:4px; overflow:hidden;
+}
+.nchdr{
+  padding:5px 11px; font-size:.57rem; text-transform:uppercase;
+  letter-spacing:.12em; color:var(--dim);
+  background:var(--s3); border-bottom:1px solid var(--bdr);
+}
+.ncbody{
+  padding:7px 11px; display:grid;
+  grid-template-columns:auto 1fr; gap:3px 11px; font-size:.68rem;
+}
+.nck{ color:var(--dim); } .ncv{ color:var(--txt); }
+.ncz{ color:var(--amb); font-weight:600; }
+.ncsp{ grid-column:1/-1; }
+.pbox{
+  margin:0 8px 8px; border-left:2px solid;
+  padding:7px 11px; border-radius:0 3px 3px 0;
+  font-size:.69rem; line-height:1.65;
+}
+.pi{ border-color:var(--red); background:rgba(232,58,90,.07); }
+.pb{ border-color:var(--org); background:rgba(224,112,48,.07); }
+.pttl{
+  font-size:.59rem; font-weight:600; text-transform:uppercase;
+  letter-spacing:.12em; margin-bottom:3px;
+}
+.pi .pttl{ color:var(--red); } .pb .pttl{ color:var(--org); }
+.bbox{
+  margin:0 8px 8px; background:var(--s2);
+  border:1px solid var(--bdr); border-radius:4px; padding:8px 11px;
+}
+.blbl{
+  font-size:.57rem; text-transform:uppercase; letter-spacing:.12em;
+  color:var(--dim); margin-bottom:4px;
+}
+.bval{ font-size:1.35rem; font-weight:600; color:var(--tel); transition:color .3s; }
+.bval.none{ color:var(--dim); font-size:.77rem; font-style:italic; font-weight:400; }
+.bsol{ font-size:.66rem; color:var(--dim); margin-top:2px; }
+.qbox{
+  margin:0 8px 8px; background:var(--s2);
+  border:1px solid var(--bdr); border-radius:4px; padding:8px 11px;
+}
+.qlbl{
+  font-size:.57rem; text-transform:uppercase; letter-spacing:.12em;
+  color:var(--dim); margin-bottom:5px;
+}
+.qchips{ display:flex; flex-wrap:wrap; gap:3px; }
+.qchip{
+  background:var(--s3); border:1px solid var(--bdr); border-radius:2px;
+  padding:1px 7px; font-size:.62rem; color:var(--dim);
+  cursor:pointer; transition:all .1s;
+}
+.qchip:hover{ border-color:var(--amb); color:var(--amb); }
+.qmt{ font-size:.62rem; color:var(--dim2); font-style:italic; }
+.legend{
+  padding:6px 8px 8px; margin-top:auto;
+  display:flex; flex-wrap:wrap; gap:4px 12px;
+}
+.leg{ display:flex; align-items:center; gap:5px; font-size:.59rem; color:var(--dim); }
+.ldot{ width:7px; height:7px; border-radius:1px; flex-shrink:0; }
+
+/* ── nav bar ── */
+.nav{
+  flex-shrink:0; border-top:1px solid var(--bdr); background:var(--s1);
+  padding:8px 16px; display:flex; align-items:center; gap:8px; flex-wrap:wrap;
+}
+.btn{
+  background:none; border:1px solid var(--bdr); color:var(--txt);
+  font-family:'IBM Plex Mono',monospace; font-size:.68rem;
+  padding:5px 12px; border-radius:3px; cursor:pointer;
+  transition:all .1s; white-space:nowrap;
+}
+.btn:hover:not(:disabled){ border-color:var(--amb); color:var(--amb); }
+.btn:disabled{ opacity:.2; cursor:not-allowed; }
+.bplay{
+  background:var(--amb); border-color:var(--amb);
+  color:#000; font-weight:600;
+}
+.bplay:hover:not(:disabled){ background:#f0b030; color:#000; }
+.bplay.on{
+  background:var(--s3); border-color:var(--bdr); color:var(--txt);
+}
+.bplay.on:hover{ border-color:var(--amb); color:var(--amb); }
+
+/* step slider */
+.step-wrap{ flex:1; min-width:80px; display:flex; flex-direction:column; gap:2px; }
+input[type=range]{ width:100%; accent-color:var(--amb); cursor:pointer; height:3px; }
+
+/* speed control */
+.speed-wrap{
+  display:flex; align-items:center; gap:6px;
+  font-size:.63rem; color:var(--dim); white-space:nowrap;
+}
+.speed-wrap input[type=range]{ width:70px; }
+#speed-lbl{ color:var(--amb); min-width:28px; text-align:right; }
+
+.sctr{ font-size:.64rem; color:var(--dim); white-space:nowrap; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="htit">Branch <span>&amp;</span> Bound</div>
+  <div class="hprob"><b id="pname"></b><br><span id="pobj"></span></div>
+  <div class="hstrat" id="pstrat"></div>
+</header>
+
+<div class="layout">
+
+  <!-- ── TREE PANEL ── -->
+  <div class="tree-panel" id="treepanel">
+    <div class="zoom-hint">scroll to zoom &nbsp;·&nbsp; drag to pan &nbsp;·&nbsp; click node for details</div>
+    <svg id="treesvg">
+      <defs>
+        <filter id="glow-amb" x="-40%" y="-40%" width="180%" height="180%">
+          <feGaussianBlur in="SourceAlpha" stdDeviation="5" result="b"/>
+          <feFlood flood-color="#e8a020" flood-opacity="0.45" result="c"/>
+          <feComposite in="c" in2="b" operator="in" result="sh"/>
+          <feMerge><feMergeNode in="sh"/><feMergeNode in="SourceGraphic"/></feMerge>
+        </filter>
+        <filter id="glow-tel" x="-40%" y="-40%" width="180%" height="180%">
+          <feGaussianBlur in="SourceAlpha" stdDeviation="5" result="b"/>
+          <feFlood flood-color="#00c4a0" flood-opacity="0.45" result="c"/>
+          <feComposite in="c" in2="b" operator="in" result="sh"/>
+          <feMerge><feMergeNode in="sh"/><feMergeNode in="SourceGraphic"/></feMerge>
+        </filter>
+        <filter id="glow-red" x="-40%" y="-40%" width="180%" height="180%">
+          <feGaussianBlur in="SourceAlpha" stdDeviation="5" result="b"/>
+          <feFlood flood-color="#e83a5a" flood-opacity="0.4" result="c"/>
+          <feComposite in="c" in2="b" operator="in" result="sh"/>
+          <feMerge><feMergeNode in="sh"/><feMergeNode in="SourceGraphic"/></feMerge>
+        </filter>
+      </defs>
+      <!-- dot grid bg -->
+      <g id="dotgrid" opacity="0.5"></g>
+      <!-- zoomable viewport group -->
+      <g id="vp"></g>
+    </svg>
+
+    <!-- zoom controls -->
+    <div class="zoom-bar">
+      <button class="zbtn" id="zin"  title="Zoom in">+</button>
+      <button class="zbtn" id="zout" title="Zoom out">−</button>
+      <button class="zbtn" id="zfit" title="Fit tree" style="font-size:.65rem">⊡</button>
+      <span class="zlbl" id="zpct">100%</span>
+    </div>
+
+    <!-- node tooltip -->
+    <div id="tooltip">
+      <div class="tt-hdr" id="tt-hdr">P0</div>
+      <button class="tt-close" id="tt-close">✕</button>
+      <div class="tt-body" id="tt-body"></div>
+      <button class="tt-jump" id="tt-jump">Jump to this node's step →</button>
+    </div>
+  </div>
+
+  <!-- ── INFO PANEL ── -->
+  <div class="info">
+    <div class="shdr">
+      <span class="bdg b-st" id="badge">START</span>
+      <span class="snum" id="snum">Step 0 / 0</span>
+    </div>
+    <div class="sdesc" id="desc"></div>
+    <div class="ncard">
+      <div class="nchdr">Current node</div>
+      <div class="ncbody" id="ncb"></div>
+    </div>
+    <div id="pzone"></div>
+    <div class="bbox">
+      <div class="blbl">Best integer solution</div>
+      <div class="bval none" id="bval">none yet</div>
+      <div class="bsol" id="bsol"></div>
+    </div>
+    <div class="qbox">
+      <div class="qlbl">Queue</div>
+      <div class="qchips" id="qchips"></div>
+    </div>
+    <div class="legend">
+      <div class="leg"><div class="ldot" style="background:#38aadc"></div>LP solved</div>
+      <div class="leg"><div class="ldot" style="background:#e8a020"></div>Active</div>
+      <div class="leg"><div class="ldot" style="background:#00c4a0"></div>Integer</div>
+      <div class="leg"><div class="ldot" style="background:#e83a5a"></div>Pruned (inf)</div>
+      <div class="leg"><div class="ldot" style="background:#e07030"></div>Pruned (bnd)</div>
+    </div>
+  </div>
+</div>
+
+<!-- ── NAV BAR ── -->
+<div class="nav">
+  <button class="btn" id="bprev" onclick="go(-1)">&#9664; Prev</button>
+  <button class="btn bplay" id="bplay" onclick="togPlay()">&#9654; Play</button>
+  <button class="btn" id="bnext" onclick="go(1)">Next &#9654;</button>
+
+  <div class="step-wrap">
+    <input type="range" id="sl" min="0" value="0" oninput="seek(+this.value)">
+  </div>
+  <span class="sctr" id="sctr">0 / 0</span>
+
+  <div class="speed-wrap">
+    <span>Speed</span>
+    <input type="range" id="speed-sl" min="1" max="10" value="5"
+           oninput="setSpeed(+this.value)">
+    <span id="speed-lbl">1.0×</span>
+  </div>
+
+  <button class="btn" onclick="seek(0)">&#8635; Reset</button>
+</div>
+
+<script>
+'use strict';
+// ── DATA ─────────────────────────────────────────────────────────────────────
+const TRACE  = __TRACE__;
+const FRAMES = TRACE.frames;
+const P      = TRACE.problem;
+const NS     = 'http://www.w3.org/2000/svg';
+
+// ── STATUS CONFIG ─────────────────────────────────────────────────────────────
+const SFC = {
+  open:'#0d1e30', lp_solved:'#0e2a42', branched:'#0d2038',
+  integer:'#062a1a', pruned_inf:'#2a0812', pruned_bound:'#2a1404'
+};
+const SEC = {
+  open:'#2d4a6a', lp_solved:'#38aadc', branched:'#38aadc',
+  integer:'#00c4a0', pruned_inf:'#e83a5a', pruned_bound:'#e07030'
+};
+const SLB = {
+  open:'QUEUED', lp_solved:'LP SOLVED', branched:'BRANCHED',
+  integer:'INTEGER', pruned_inf:'INFEASIBLE', pruned_bound:'PRUNED'
+};
+const BADGE = {
+  start:       ['b-st','INITIALISE',   '\u{1F680}'],
+  lp_solved:   ['b-lp','LP SOLVED',    '\u{1F535}'],
+  branch:      ['b-br','BRANCHING',    '\u{1F500}'],
+  integer:     ['b-it','INTEGER',      '\u2705'],
+  prune_inf:   ['b-if','INFEASIBLE',   '\u2702'],
+  prune_bound: ['b-bd','PRUNED',       '\u2702'],
+  done:        ['b-dn','OPTIMAL',      '\u{1F3C6}'],
+};
+const EPS = 1e-6;
+
+// ── SVG helpers ───────────────────────────────────────────────────────────────
+function se(tag, attrs) {
+  const e = document.createElementNS(NS, tag);
+  for (const [k, v] of Object.entries(attrs)) e.setAttribute(k, v);
+  return e;
+}
+function st(txt, attrs, parent) {
+  const t = se('text', attrs);
+  t.textContent = txt;
+  if (parent) parent.appendChild(t);
+  return t;
+}
+
+// ── TREE LAYOUT ───────────────────────────────────────────────────────────────
+function hierPos(nodes) {
+  const ids = Object.keys(nodes).map(Number).sort((a,b)=>a-b);
+  const ch  = {};
+  let root  = null;
+  for (const id of ids) {
+    ch[id] = [];
+    if (nodes[id].parent_id === null) root = id;
+  }
+  for (const id of ids) {
+    const p = nodes[id].parent_id;
+    if (p !== null && ch[p]) ch[p].push(id);
+  }
+  for (const id of ids) ch[id].sort((a,b) => a-b);
+
+  const pos = {};
+  let leafX = 0;
+  function lay(id, d) {
+    const c = ch[id] || [];
+    if (!c.length) { pos[id] = {c: leafX++, r: d}; return; }
+    for (const cid of c) lay(cid, d+1);
+    const cols = c.map(x => pos[x].c);
+    pos[id] = {c: (Math.min(...cols)+Math.max(...cols))/2, r: d};
+  }
+  if (root !== null) lay(root, 0);
+  return {pos, ch, root};
+}
+
+const NW=162, NH=84, HG=52, VG=92, M=60;
+const px = c => c*(NW+HG)+NW/2+M;
+const py = r => r*(NH+VG)+NH/2+M;
+
+// ── ZOOM / PAN STATE ──────────────────────────────────────────────────────────
+let vpX=0, vpY=0, vpS=1;
+let panStart=null, panOrigin=null;
+let lastTreeW=0, lastTreeH=0;
+
+function applyVP() {
+  document.getElementById('vp').setAttribute(
+    'transform', `translate(${vpX},${vpY}) scale(${vpS})`
+  );
+  document.getElementById('zpct').textContent = Math.round(vpS*100)+'%';
+}
+
+function fitTree(W, H) {
+  const panel = document.getElementById('treepanel');
+  const pw = panel.clientWidth, ph = panel.clientHeight;
+  if (!pw || !ph || !W || !H) return;
+  const sx = (pw-40)/W, sy = (ph-40)/H;
+  vpS = Math.min(sx, sy, 1);
+  vpX = (pw - W*vpS)/2;
+  vpY = (ph - H*vpS)/2;
+  applyVP();
+}
+
+function zoomBy(delta, cx, cy) {
+  const panel = document.getElementById('treepanel');
+  const pw = panel.clientWidth, ph = panel.clientHeight;
+  const ocx = cx ?? pw/2, ocy = cy ?? ph/2;
+  const newS = Math.max(0.15, Math.min(4, vpS * delta));
+  vpX = ocx - (ocx - vpX)*(newS/vpS);
+  vpY = ocy - (ocy - vpY)*(newS/vpS);
+  vpS = newS;
+  applyVP();
+}
+
+// ── RENDER TREE ───────────────────────────────────────────────────────────────
+function renderTree(frame) {
+  const nodes = frame.nodes;
+  const ids   = Object.keys(nodes).map(Number).sort((a,b)=>a-b);
+  if (!ids.length) return;
+
+  const {pos, ch} = hierPos(nodes);
+  const maxC = Math.max(...Object.values(pos).map(p=>p.c), 0);
+  const maxR = Math.max(...Object.values(pos).map(p=>p.r), 0);
+  const W = (maxC+1)*(NW+HG)+2*M;
+  const H = (maxR+1)*(NH+VG)+2*M;
+
+  // Update SVG size
+  const svg = document.getElementById('treesvg');
+  svg.setAttribute('width',  svg.clientWidth  || 800);
+  svg.setAttribute('height', svg.clientHeight || 500);
+
+  // Dot grid (fixed, not part of VP)
+  const dg = document.getElementById('dotgrid');
+  dg.innerHTML = '';
+  const pw = svg.clientWidth || 800, ph = svg.clientHeight || 500;
+  for (let gx=20; gx<pw; gx+=44)
+    for (let gy=20; gy<ph; gy+=44)
+      dg.appendChild(se('circle',{cx:gx,cy:gy,r:'1',fill:'#1a2840'}));
+
+  // Fit on first render or if tree dimensions changed
+  if (Math.abs(W-lastTreeW)>10 || Math.abs(H-lastTreeH)>10) {
+    lastTreeW = W; lastTreeH = H;
+    fitTree(W, H);
+  }
+
+  const vp = document.getElementById('vp');
+  vp.innerHTML = '';
+
+  // ── Edges ──────────────────────────────────────────────────────────────────
+  for (const id of ids) {
+    const nd = nodes[id];
+    if (nd.parent_id === null) continue;
+    const pp = pos[nd.parent_id], cp = pos[id];
+    if (!pp || !cp) continue;
+
+    const x1=px(pp.c), y1=py(pp.r)+NH/2+2;
+    const x2=px(cp.c), y2=py(cp.r)-NH/2-2;
+    const my=(y1+y2)/2;
+
+    vp.appendChild(se('path',{
+      d:`M${x1} ${y1} C${x1} ${my} ${x2} ${my} ${x2} ${y2}`,
+      fill:'none', stroke:'#1a3a50', 'stroke-width':'1.8'
+    }));
+
+    if (nd.branch_desc) {
+      const mx=(x1+x2)/2;
+      const lw=nd.branch_desc.length*5.6+12;
+      vp.appendChild(se('rect',{x:mx-lw/2,y:my-10,width:lw,height:17,rx:'3',
+        fill:'#080c12',stroke:'#1a2840','stroke-width':'1'}));
+      st(nd.branch_desc,{x:mx,y:my+4,'text-anchor':'middle','font-size':'9.5',
+        'font-family':'IBM Plex Mono,monospace',fill:'#3a6080'},vp);
+    }
+  }
+
+  // ── Nodes ──────────────────────────────────────────────────────────────────
+  for (const id of ids) {
+    const nd = nodes[id];
+    const p  = pos[id];
+    if (!p) continue;
+
+    const cx=px(p.c), cy=py(p.r), nx=cx-NW/2, ny=cy-NH/2;
+    const fc = SFC[nd.status] || SFC.open;
+    const ec = SEC[nd.status] || SEC.open;
+    const isCur = String(id) === String(frame.current_id);
+
+    const g = se('g', {
+      'data-nid': id,
+      style: 'cursor:pointer',
+    });
+    g.addEventListener('click', e => { e.stopPropagation(); showTooltip(id, e); });
+
+    // glow ring for current / integer
+    if (isCur || nd.status === 'integer') {
+      const gc = nd.status === 'integer' ? 'glow-tel' : 'glow-amb';
+      g.appendChild(se('rect',{x:nx-6,y:ny-6,width:NW+12,height:NH+12,rx:'9',
+        fill:'none', stroke:ec, 'stroke-width':'1.5', 'stroke-opacity':'0.28',
+        filter:`url(#${gc})`}));
+    }
+
+    // main box
+    g.appendChild(se('rect',{x:nx,y:ny,width:NW,height:NH,rx:'5',
+      fill:fc, stroke:ec, 'stroke-width':isCur?'2.8':'1.5'}));
+
+    // header band
+    const hc = {integer:'rgba(0,196,160,0.12)',pruned_inf:'rgba(232,58,90,0.12)',
+                 pruned_bound:'rgba(224,112,48,0.12)'}[nd.status]||'rgba(255,255,255,0.03)';
+    g.appendChild(se('rect',{x:nx,y:ny,width:NW,height:22,rx:'4',fill:hc}));
+    g.appendChild(se('rect',{x:nx,y:ny+17,width:NW,height:5,fill:hc}));
+
+    // node ID
+    st('P'+id, {x:cx,y:ny+14,'text-anchor':'middle','font-size':'9',
+      'font-weight':'600','font-family':'IBM Plex Mono,monospace',fill:ec}, g);
+
+    // status label
+    st(SLB[nd.status]||nd.status, {x:cx,y:ny+27,'text-anchor':'middle',
+      'font-size':'7.5','font-family':'IBM Plex Mono,monospace',fill:ec,opacity:'0.82'}, g);
+
+    // LP value
+    if (nd.lp_val != null) {
+      st('z = '+nd.lp_val.toFixed(4), {x:cx,y:ny+46,'text-anchor':'middle',
+        'font-size':'11','font-family':'IBM Plex Mono,monospace',fill:'#e8a020'}, g);
+    } else if (nd.status === 'pruned_inf') {
+      st('INFEASIBLE', {x:cx,y:ny+46,'text-anchor':'middle','font-size':'10',
+        'font-family':'IBM Plex Mono,monospace',fill:'#e83a5a'}, g);
+    }
+
+    // solution summary
+    if (nd.lp_sol && Object.keys(nd.lp_sol).length) {
+      const vn   = P.var_names;
+      const parts= vn.slice(0,4).map(v=>v+'='+nd.lp_sol[v].toFixed(2));
+      st(parts.join('  ')+(vn.length>4?'\u2026':''), {x:cx,y:ny+62,'text-anchor':'middle',
+        'font-size':'9','font-family':'IBM Plex Mono,monospace',fill:'#4a7a9a'}, g);
+    }
+
+    // prune X overlay
+    if (nd.status === 'pruned_inf' || nd.status === 'pruned_bound') {
+      const xc = nd.status==='pruned_inf' ? '#e83a5a' : '#e07030';
+      const h  = NW*0.27;
+      g.appendChild(se('line',{x1:cx-h,y1:cy-12,x2:cx+h,y2:cy+10,
+        stroke:xc,'stroke-width':'2.5','stroke-opacity':'0.45','stroke-linecap':'round'}));
+      g.appendChild(se('line',{x1:cx+h,y1:cy-12,x2:cx-h,y2:cy+10,
+        stroke:xc,'stroke-width':'2.5','stroke-opacity':'0.45','stroke-linecap':'round'}));
+    }
+
+    // integer star
+    if (nd.status === 'integer') {
+      st('\u2605', {x:cx,y:ny+78,'text-anchor':'middle','font-size':'11',
+        'font-family':'IBM Plex Mono,monospace',fill:'#00c4a0','font-weight':'bold'}, g);
+    }
+
+    vp.appendChild(g);
+  }
+}
+
+// ── TOOLTIP / NODE CLICK ──────────────────────────────────────────────────────
+// For each node id, find the last frame index where it was current
+function lastFrameForNode(nid) {
+  let best = -1;
+  for (let i=0; i<FRAMES.length; i++) {
+    if (String(FRAMES[i].current_id) === String(nid)) best = i;
+  }
+  if (best < 0) {
+    // fallback: last frame where node appears
+    for (let i=FRAMES.length-1; i>=0; i--) {
+      if (FRAMES[i].nodes[String(nid)]) { best = i; break; }
+    }
+  }
+  return Math.max(best, 0);
+}
+
+let tooltipNodeId = null;
+
+function showTooltip(nid, evt) {
+  tooltipNodeId = nid;
+  const frameIdx = lastFrameForNode(nid);
+  const nd       = FRAMES[frameIdx].nodes[String(nid)];
+  if (!nd) return;
+
+  const tt   = document.getElementById('tooltip');
+  const hdr  = document.getElementById('tt-hdr');
+  const body = document.getElementById('tt-body');
+  const jump = document.getElementById('tt-jump');
+
+  // header colour
+  const ec = SEC[nd.status] || '#4a6580';
+  hdr.style.color = ec;
+  hdr.style.borderBottom = `1px solid ${ec}40`;
+  hdr.textContent = 'P'+nid+'  \u00B7  '+( SLB[nd.status] || nd.status );
+
+  // body
+  const vnames = P.var_names;
+  let html = '';
+
+  if (nd.depth != null)
+    html += `<span class="tt-k">Depth</span><span class="tt-v">${nd.depth}</span>`;
+  if (nd.lp_val != null)
+    html += `<span class="tt-k">LP bound</span><span class="tt-z">${nd.lp_val.toFixed(6)}</span>`;
+
+  if (nd.lp_sol && Object.keys(nd.lp_sol).length) {
+    const iv = new Set(P.integer_vars || []);
+    const rows = vnames.map(v => {
+      const val  = nd.lp_sol[v] || 0;
+      const frac = iv.has(v) && Math.abs(val - Math.round(val)) > EPS;
+      const col  = frac ? 'var(--red)' : iv.has(v) ? 'var(--tel)' : '#7aaac0';
+      return `<span class="tt-k">${v}</span>`
+           + `<span class="tt-v" style="color:${col}">${val.toFixed(4)}</span>`;
+    }).join('');
+    html += rows;
+  }
+
+  // variable bounds
+  const vb = P.var_bounds || {};
+  const bndRows = vnames.map(v => {
+    const lo = (nd.lb && nd.lb[v] != null) ? nd.lb[v] : 0;
+    const hi = (nd.ub && nd.ub[v] != null) ? nd.ub[v] : '\u221e';
+    return `<span class="tt-k">${v}</span><span class="tt-v" style="color:var(--dim)">[${lo}, ${hi}]</span>`;
+  }).join('');
+
+  html += `<span class="tt-full" style="border-top:1px solid var(--bdr);margin-top:4px;padding-top:4px;color:var(--dim);font-size:.62rem">bounds</span>`;
+  html += bndRows;
+
+  if (nd.prune_reason)
+    html += `<span class="tt-k">Pruned</span><span class="tt-v" style="color:var(--red)">${nd.prune_reason}</span>`;
+
+  body.innerHTML = html;
+
+  // jump button
+  jump.textContent = `Jump to step ${FRAMES[frameIdx].step} \u2192`;
+  jump.onclick = () => { hideTooltip(); seek(frameIdx); };
+
+  // position tooltip near click, staying within viewport
+  const panel  = document.getElementById('treepanel');
+  const pr     = panel.getBoundingClientRect();
+  let   tx     = evt.clientX - pr.left + 16;
+  let   ty     = evt.clientY - pr.top  - 20;
+
+  tt.style.left = '0'; tt.style.top = '0';
+  tt.classList.add('show');
+
+  const tw = tt.offsetWidth, th = tt.offsetHeight;
+  if (tx + tw > pr.width  - 10) tx = evt.clientX - pr.left - tw - 16;
+  if (ty + th > pr.height - 10) ty = pr.height - th - 10;
+  tx = Math.max(6, tx); ty = Math.max(6, ty);
+
+  tt.style.left = tx+'px';
+  tt.style.top  = ty+'px';
+}
+
+function hideTooltip() {
+  document.getElementById('tooltip').classList.remove('show');
+  tooltipNodeId = null;
+}
+
+document.getElementById('tt-close').addEventListener('click', hideTooltip);
+document.getElementById('treepanel').addEventListener('click', e => {
+  if (e.target.closest('[data-nid]')) return;
+  hideTooltip();
+});
+
+// ── ZOOM/PAN EVENTS ───────────────────────────────────────────────────────────
+const panel = document.getElementById('treepanel');
+
+// wheel zoom
+panel.addEventListener('wheel', e => {
+  e.preventDefault();
+  const rect  = panel.getBoundingClientRect();
+  const cx    = e.clientX - rect.left;
+  const cy    = e.clientY - rect.top;
+  const delta = e.deltaY < 0 ? 1.12 : 1/1.12;
+  zoomBy(delta, cx, cy);
+}, {passive:false});
+
+// drag pan
+panel.addEventListener('mousedown', e => {
+  if (e.target.closest('[data-nid]')) return;
+  panel.classList.add('panning');
+  panStart  = {x: e.clientX, y: e.clientY};
+  panOrigin = {x: vpX, y: vpY};
+});
+window.addEventListener('mousemove', e => {
+  if (!panStart) return;
+  vpX = panOrigin.x + (e.clientX - panStart.x);
+  vpY = panOrigin.y + (e.clientY - panStart.y);
+  applyVP();
+});
+window.addEventListener('mouseup', () => {
+  if (panStart) { panel.classList.remove('panning'); panStart = null; }
+});
+
+// touch pinch-zoom + pan
+let touches = null;
+panel.addEventListener('touchstart', e => {
+  e.preventDefault();
+  if (e.touches.length === 1) {
+    panStart  = {x: e.touches[0].clientX, y: e.touches[0].clientY};
+    panOrigin = {x: vpX, y: vpY};
+    touches   = null;
+  } else if (e.touches.length === 2) {
+    panStart = null;
+    touches  = {
+      d: Math.hypot(e.touches[1].clientX-e.touches[0].clientX,
+                    e.touches[1].clientY-e.touches[0].clientY),
+      s: vpS,
+    };
+  }
+}, {passive:false});
+panel.addEventListener('touchmove', e => {
+  e.preventDefault();
+  if (e.touches.length === 1 && panStart) {
+    vpX = panOrigin.x + (e.touches[0].clientX - panStart.x);
+    vpY = panOrigin.y + (e.touches[0].clientY - panStart.y);
+    applyVP();
+  } else if (e.touches.length === 2 && touches) {
+    const d   = Math.hypot(e.touches[1].clientX-e.touches[0].clientX,
+                           e.touches[1].clientY-e.touches[0].clientY);
+    const mx  = (e.touches[0].clientX+e.touches[1].clientX)/2;
+    const my  = (e.touches[0].clientY+e.touches[1].clientY)/2;
+    const r   = panel.getBoundingClientRect();
+    const cx  = mx-r.left, cy = my-r.top;
+    const ns  = Math.max(0.15, Math.min(4, touches.s * (d/touches.d)));
+    vpX = cx - (cx-vpX)*(ns/vpS);
+    vpY = cy - (cy-vpY)*(ns/vpS);
+    vpS = ns; applyVP();
+  }
+}, {passive:false});
+panel.addEventListener('touchend', () => { panStart = null; touches = null; });
+
+// zoom buttons
+document.getElementById('zin').addEventListener('click',  () => zoomBy(1.25));
+document.getElementById('zout').addEventListener('click', () => zoomBy(0.8));
+document.getElementById('zfit').addEventListener('click', () => {
+  lastTreeW = 0; lastTreeH = 0; // force refit
+  renderTree(FRAMES[cur]);
+});
+
+// ── INFO PANEL ────────────────────────────────────────────────────────────────
+function buildDesc(frame) {
+  const ev = frame.event, info = frame.info;
+  const vnames = P.var_names, iv = new Set(P.integer_vars||[]);
+
+  if (ev === 'start') {
+    const sm = {dfs:'Depth-First (LIFO)',best:'Best-First (LP bound)',bfs:'Breadth-First (FIFO)'};
+    return `Root <b>P1</b> queued.<br>Strategy: <b style="color:var(--amb)">${sm[info.strategy||'dfs']||info.strategy}</b>`;
+  }
+
+  if (ev === 'lp_solved') {
+    const lv=info.lp_val, ls=info.lp_sol||{}, frv=info.frac_vars||[];
+    const rows = vnames.map(v => {
+      const val=ls[v]||0, is_i=iv.has(v), frac=is_i&&Math.abs(val-Math.round(val))>EPS;
+      const ic = frac ? '<span style="color:var(--red)">\u2717 frac</span>'
+                : is_i? '<span style="color:var(--tel)">\u2713</span>'
+                :       '<span style="color:var(--dim)">\u2014</span>';
+      const vc = frac?'var(--red)':is_i?'var(--tel)':'#7aaac0';
+      return `<tr><td><b>${v}</b></td><td style="color:${vc}">${val.toFixed(4)}</td>`
+            +`<td style="color:var(--dim)">${is_i?'int':'cont'}</td><td>${ic}</td></tr>`;
+    }).join('');
+    let h = '<table style="border-collapse:collapse;width:100%;font-size:.71em">'
+      +'<tr><th style="color:var(--dim);font-weight:400;padding:1px 5px">Var</th>'
+      +'<th style="color:var(--dim);font-weight:400;padding:1px 5px">Value</th>'
+      +'<th style="color:var(--dim);font-weight:400;padding:1px 5px">Type</th>'
+      +'<th style="color:var(--dim);font-weight:400;padding:1px 5px">OK?</th></tr>'
+      +rows
+      +`<tr><td style="padding-top:4px"><b style="color:var(--amb)">z_LP</b></td>`
+      +`<td style="color:var(--amb);font-weight:600">${lv.toFixed(6)}</td>`
+      +'<td></td><td></td></tr></table>';
+    if (frv.length) {
+      const fp = frv.map(([v,val])=>`<b style="color:var(--amb)">${v}</b>`
+        +`=<span style="color:var(--red)">${val.toFixed(3)}</span>`).join('  ');
+      h += `<div style="margin-top:5px;padding:5px 8px;border-left:2px solid var(--amb);`
+         + `background:rgba(232,160,32,.07);font-size:.71em">`
+         + `<span style="color:var(--amb);font-size:.64em;text-transform:uppercase;letter-spacing:.1em">Integrality</span><br>`
+         + `Frac: ${fp}<br><span style="color:var(--dim)">Branch on: `
+         + `<b style="color:var(--amb)">${frv[0][0]}</b>=${frv[0][1].toFixed(3)}</span></div>`;
+    }
+    return h;
+  }
+
+  if (ev === 'branch') {
+    const fv=info.bval-Math.floor(info.bval);
+    return `Branch on <b style="color:var(--amb)">${info.bvar}</b> = ${info.bval.toFixed(4)}`
+      +` (frac=<span style="color:var(--red)">${fv.toFixed(4)}</span>)<br><br>`
+      +`<span style="color:var(--tel)">\u25B8 LEFT &nbsp;P${info.left_id}</span>`
+      +`&nbsp;&nbsp;${info.bvar} \u2264 <b>${info.lo}</b>&nbsp;<span style="color:var(--dim)">(floor)</span><br>`
+      +`<span style="color:var(--amb)">\u25B8 RIGHT P${info.right_id}</span>`
+      +`&nbsp;&nbsp;${info.bvar} \u2265 <b>${info.hi}</b>&nbsp;<span style="color:var(--dim)">(ceil)</span>`;
+  }
+
+  if (ev === 'integer') {
+    const lv=info.lp_val, ls=info.lp_sol||{}, nb=info.is_new_best;
+    const sp = vnames.map(v=>`<span style="color:var(--dim)">${v}</span>`
+      +`=<b style="color:var(--tel)">${Math.round(ls[v])}</b>`).join('  ');
+    return `z=<b style="color:${nb?'var(--tel)':'var(--amb)'}">${lv.toFixed(6)}</b>`
+      +`&nbsp;&nbsp;${sp}<br>`
+      +(nb?'<b style="color:var(--tel)">\u{1F3C6} New incumbent!</b>'
+          :'<span style="color:var(--dim)">Does not improve best.</span>');
+  }
+
+  if (ev === 'prune_inf')
+    return 'LP has <b>no feasible solution</b> with these bounds.<br>'
+          +'<span style="color:var(--dim)">Entire subtree discarded.</span>';
+
+  if (ev === 'prune_bound') {
+    const lv2=(info.lp_val!=null)?info.lp_val.toFixed(4):'?';
+    const bv3=info.best_val!=null?info.best_val:'?';
+    return `z_LP=<b style="color:var(--amb)">${lv2}</b> \u2264 z*=<b style="color:var(--tel)">${bv3}</b><br>`
+          +'Cannot improve incumbent.<br>'
+          +'<span style="color:var(--dim)">Entire subtree discarded.</span>';
+  }
+
+  if (ev === 'done') {
+    const bv2=info.best_val, bs2=info.best_sol||{}, tn=info.total_nodes||'?';
+    if (bv2 != null) {
+      const sp=vnames.map(v=>`<span style="color:var(--dim)">${v}</span>`
+        +`=<b style="color:var(--tel)">${bs2[v]}</b>`).join('  ');
+      return `\u{1F3C6} <b>Optimal solution proven!</b><br>`
+        +`z*=<b style="color:var(--tel);font-size:1.2em">${bv2}</b>&nbsp;&nbsp;${sp}<br>`
+        +`<span style="color:var(--dim)">${tn} nodes \u00B7 gap = 0%</span>`;
+    }
+    return '<span style="color:var(--red)">No feasible integer solution.</span>';
+  }
+  return '';
+}
+
+function renderInfo(f) {
+  const ev=f.event, nid=f.current_id, info=f.info, vnames=P.var_names;
+  const [bcls,blbl,bic] = BADGE[ev] || ['b-st', ev, ''];
+  const bdg = document.getElementById('badge');
+  bdg.className = 'bdg '+bcls; bdg.textContent = blbl;
+  document.getElementById('snum').textContent =
+    bic+' Step '+f.step+(nid!=null?' \u00B7 P'+nid:'');
+  document.getElementById('desc').innerHTML = buildDesc(f);
+
+  // node card
+  const ncb = document.getElementById('ncb');
+  if (nid != null) {
+    const nd = f.nodes[String(nid)];
+    if (nd) {
+      const bp = vnames.map(v=>{
+        const lo=(nd.lb&&nd.lb[v]!=null)?nd.lb[v]:0;
+        const hi=(nd.ub&&nd.ub[v]!=null)?nd.ub[v]:'\u221e';
+        return `<span class="nck">${v}</span><span class="ncv">[${lo},${hi}]</span>`;
+      }).join('');
+      let h = `<span class="nck">Node</span><span class="ncv">P${nd.id}</span>`
+             +`<span class="nck">Status</span><span class="ncv">${nd.status}</span>`;
+      if (nd.lp_val!=null)
+        h += `<span class="nck">LP</span><span class="ncz">${nd.lp_val.toFixed(6)}</span>`;
+      if (nd.lp_sol&&Object.keys(nd.lp_sol).length)
+        h += `<span class="nck">Sol</span><span class="ncv">`
+           + vnames.map(v=>v+'='+nd.lp_sol[v].toFixed(3)).join('  ')+'</span>';
+      h += `<span class="ncsp" style="color:var(--dim);margin-top:2px;font-size:.63rem">${bp}</span>`;
+      ncb.innerHTML = h;
+    }
+  } else { ncb.innerHTML = '<span class="nck" style="color:var(--dim2)">\u2014</span>'; }
+
+  // pruning callout
+  const pz = document.getElementById('pzone');
+  if (ev === 'prune_inf')
+    pz.innerHTML='<div class="pbox pi"><div class="pttl">\u2702 Prune: Infeasible</div>'
+      +'LP has no solution with these bounds.<br>'
+      +'<span style="color:var(--dim)">Subtree discarded.</span></div>';
+  else if (ev === 'prune_bound') {
+    const lv2=(info.lp_val!=null)?info.lp_val.toFixed(4):'?';
+    const bv3=info.best_val!=null?info.best_val:'?';
+    pz.innerHTML='<div class="pbox pb"><div class="pttl">\u2702 Prune: Bound</div>'
+      +`z_LP=<b style="color:var(--amb)">${lv2}</b> \u2264 z*=<b style="color:var(--tel)">${bv3}</b><br>`
+      +'Cannot improve incumbent.<br>'
+      +'<span style="color:var(--dim)">Subtree discarded.</span></div>';
+  } else pz.innerHTML = '';
+
+  // best solution
+  const bv=document.getElementById('bval'), bs=document.getElementById('bsol');
+  if (f.best_val != null) {
+    bv.className='bval'; bv.textContent='z* = '+f.best_val;
+    bs.textContent=vnames.map(v=>v+' = '+(f.best_sol[v]??'?')).join('  ');
+  } else { bv.className='bval none'; bv.textContent='none yet'; bs.textContent=''; }
+
+  // queue chips (clickable — jump to that node's last step)
+  const qc = document.getElementById('qchips');
+  if (f.queue.length === 0)
+    qc.innerHTML='<span class="qmt">empty \u2014 search complete</span>';
+  else {
+    const shown = f.queue.slice(0,12);
+    qc.innerHTML = shown.map(n=>
+      `<span class="qchip" onclick="seek(${lastFrameForNode(n)})">P${n}</span>`
+    ).join('')+(f.queue.length>12?`<span class="qmt"> +${f.queue.length-12}</span>`:'');
+  }
+}
+
+// ── NAVIGATION STATE (hoisted so setSpeed / togPlay can reference them) ───────
+let cur = 0, tmr = null;
+
+// ── SPEED CONTROL ─────────────────────────────────────────────────────────────
+// Slider 1–10 maps to: 2.5s → 0.2s (non-linear, faster feels snappier)
+let playInterval = 1200; // ms
+
+function setSpeed(v) {
+  // v=1 → 2500ms (0.4×), v=5 → ~900ms (1×), v=10 → 200ms (5×)
+  const ms = Math.round(2500 / (0.4 + (v-1) * 0.4888));
+  playInterval = ms;
+  const xLabel = (1200/ms).toFixed(1);
+  document.getElementById('speed-lbl').textContent = xLabel + '\u00D7';
+  // if playing, restart timer with new speed
+  if (tmr) { clearInterval(tmr); tmr = setInterval(autoStep, playInterval); }
+}
+// init label
+setSpeed(5);
+
+// ── NAVIGATION ────────────────────────────────────────────────────────────────
+
+function apply(i) {
+  i = Math.max(0, Math.min(i, FRAMES.length-1));
+  cur = i;
+  const tot = FRAMES.length-1;
+  document.getElementById('sl').max   = tot;
+  document.getElementById('sl').value = i;
+  document.getElementById('sctr').textContent = i+' / '+tot;
+  document.getElementById('bprev').disabled = (i===0);
+  document.getElementById('bnext').disabled = (i===tot);
+  renderTree(FRAMES[i]);
+  renderInfo(FRAMES[i]);
+}
+
+function go(d)   { apply(cur+d); }
+function seek(i) { apply(+i); }
+
+function autoStep() {
+  if (cur >= FRAMES.length-1) {
+    clearInterval(tmr); tmr=null;
+    const b=document.getElementById('bplay');
+    b.textContent='\u25B6 Play'; b.classList.remove('on');
+    return;
+  }
+  go(1);
+}
+
+function togPlay() {
+  const b=document.getElementById('bplay');
+  if (tmr) {
+    clearInterval(tmr); tmr=null;
+    b.textContent='\u25B6 Play'; b.classList.remove('on');
+  } else {
+    b.textContent='\u23F8 Pause'; b.classList.add('on');
+    tmr = setInterval(autoStep, playInterval);
+  }
+}
+
+document.addEventListener('keydown', e => {
+  if (e.key==='ArrowRight'||e.key==='ArrowDown')  { e.preventDefault(); go(+1); }
+  if (e.key==='ArrowLeft' ||e.key==='ArrowUp')    { e.preventDefault(); go(-1); }
+  if (e.key===' ')                                 { e.preventDefault(); togPlay(); }
+  if (e.key==='+' || e.key==='=')                  zoomBy(1.2);
+  if (e.key==='-')                                  zoomBy(0.8);
+  if (e.key==='Escape')                             hideTooltip();
+  if (e.key==='0' || e.key==='f') { lastTreeW=0; lastTreeH=0; renderTree(FRAMES[cur]); }
+});
+
+// ── INIT ──────────────────────────────────────────────────────────────────────
+const slabels = {dfs:'Depth-First (DFS)',best:'Best-First',bfs:'Breadth-First'};
+document.getElementById('pname').textContent  = P.name;
+document.getElementById('pobj').textContent   = P.display;
+document.getElementById('pstrat').textContent = slabels[TRACE.strategy]||TRACE.strategy;
+
+// Ensure SVG fills its container before first render
+window.addEventListener('resize', () => {
+  lastTreeW=0; lastTreeH=0; renderTree(FRAMES[cur]);
+});
+
+apply(0);
+</script>
+</body>
+</html>
