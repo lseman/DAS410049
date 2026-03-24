@@ -1,0 +1,50 @@
+classDiagram
+    direction TB
+
+    class GlobalOnlyParallelBnB {
+        +sharedBestBound : atomic~double~
+        +incumbentSolution
+        +terminate : atomic_bool
+        +globalPool : ConcurrentQueue~Node~
+        +cutPool : SharedCutPool
+        +startWorkers(numThreads)
+        +updateBestBound(newBound)
+    }
+
+    class Worker {
+        +id : int
+        +processNode(node : Node)
+        +solveRelaxation(node)
+        +branch(node)
+        +checkTermination()
+    }
+
+    class Node {
+        +subproblem
+        +bound : double
+        +depth : int
+        +isInteger : bool
+    }
+
+    class GlobalPool {
+        <<ConcurrentQueue>>
+        +push(node : Node)
+        +pop() Node
+        +size() : int
+    }
+
+    class CutPool {
+        +addCuts(cuts)
+        +getRelevantCuts() : list~Cut~
+        +purgeUseless()
+    }
+
+    GlobalOnlyParallelBnB --> GlobalPool : owns / broadcasts
+    GlobalOnlyParallelBnB --> CutPool : owns
+    GlobalOnlyParallelBnB o-- Worker : "creates N workers"
+    Worker --> GlobalPool : "pops / pushes"
+    Worker --> CutPool : "reads / adds cuts"
+    Worker ..> GlobalOnlyParallelBnB : "updates sharedBestBound"
+    GlobalPool "1" *-- "*" Node : contains
+
+    note for GlobalOnlyParallelBnB "★ Pure Global Pool Architecture\n★ Simplest to implement\n★ High contention on many cores"

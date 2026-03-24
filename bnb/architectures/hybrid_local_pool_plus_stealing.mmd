@@ -1,0 +1,62 @@
+classDiagram
+    direction TB
+
+    class HybridWorkStealingBnB {
+        +sharedBestBound : atomic~double~
+        +incumbentSolution
+        +terminate : atomic_bool
+        +localPools : array~Deque~Node~~
+        +globalFallback : ConcurrentQueue~Node~
+        +cutPool : SharedCutPool
+        +startWorkers(numThreads)
+        +updateBestBound(newBound)
+        +workStealingStrategy() : victimId
+    }
+
+    class WorkerThread {
+        +id : int
+        +localDeque : Deque~Node~
+        +processNode(node : Node)
+        +solveRelaxation(node)
+        +branch(node)
+        +stealFrom(victimId) Node
+        +checkLocalEmpty()
+    }
+
+    class Node {
+        +subproblem
+        +bound : double
+        +depth : int
+        +isInteger : bool
+    }
+
+    class LocalPool {
+        <<Deque (LIFO/FIFO)>>
+        +push(node : Node)
+        +pop() Node
+        +stealHalf() : list~Node~
+    }
+
+    class GlobalFallback {
+        <<ConcurrentQueue>>
+        +push(node : Node)
+        +pop() Node
+    }
+
+    class CutPool {
+        +addCuts(cuts)
+        +getRelevantCuts() : list~Cut~
+        +purgeUseless()
+    }
+
+    HybridWorkStealingBnB --> LocalPool : "each worker owns one"
+    HybridWorkStealingBnB --> GlobalFallback : "fallback only"
+    HybridWorkStealingBnB --> CutPool : owns
+    HybridWorkStealingBnB o-- WorkerThread : "creates N workers"
+    WorkerThread --> LocalPool : owns
+    WorkerThread --> GlobalFallback : "steals when local empty"
+    WorkerThread --> CutPool : "reads / adds cuts"
+    WorkerThread ..> HybridWorkStealingBnB : "updates sharedBestBound"
+    LocalPool "1" *-- "*" Node : contains
+
+    note for HybridWorkStealingBnB "★ Recommended Hybrid + Work Stealing\n★ Low contention + dynamic balance\n★ Students can choose stealing policy"

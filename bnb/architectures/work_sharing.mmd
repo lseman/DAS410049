@@ -1,0 +1,62 @@
+classDiagram
+    direction TB
+
+    class WorkSharingBnB {
+        +sharedBestBound : atomic~double~
+        +incumbentSolution
+        +terminate : atomic_bool
+        +localPools : array~Deque~Node~~
+        +globalPool : ConcurrentQueue~Node~
+        +pushSurplusThreshold : int
+        +cutPool : SharedCutPool
+        +startWorkers(numThreads)
+        +updateBestBound(newBound)
+    }
+
+    class WorkerThread {
+        +id : int
+        +localDeque : Deque~Node~
+        +processNode(node : Node)
+        +solveRelaxation(node)
+        +branch(node)
+        +pushSurplusToGlobal()
+    }
+
+    class Node {
+        +subproblem
+        +bound : double
+        +depth : int
+        +isInteger : bool
+    }
+
+    class LocalPool {
+        <<Deque>>
+        +push(node : Node)
+        +pop() Node
+        +size() : int
+    }
+
+    class GlobalPool {
+        <<ConcurrentQueue>>
+        +push(node : Node)
+        +pop() Node
+    }
+
+    class CutPool {
+        +addCuts(cuts)
+        +getRelevantCuts() : list~Cut~
+        +purgeUseless()
+    }
+
+    WorkSharingBnB --> LocalPool : "each worker owns one"
+    WorkSharingBnB --> GlobalPool : "surplus push"
+    WorkSharingBnB --> CutPool : owns
+    WorkSharingBnB o-- WorkerThread : "creates N workers"
+    WorkerThread --> LocalPool : owns
+    WorkerThread --> GlobalPool : "pushes surplus when full"
+    WorkerThread --> CutPool : "reads / adds cuts"
+    WorkerThread ..> WorkSharingBnB : "updates sharedBestBound"
+    LocalPool "1" *-- "*" Node : contains
+    GlobalPool "1" *-- "*" Node : contains
+
+    note for WorkSharingBnB "★ Work-Sharing Architecture\n★ Push-based load balancing\n★ Alternative to stealing"

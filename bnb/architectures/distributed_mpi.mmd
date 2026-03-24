@@ -1,0 +1,47 @@
+classDiagram
+    direction TB
+
+    class DistributedMPIBnB {
+        +rank : int
+        +numRanks : int
+        +localPool : Deque~Node~
+        +sharedBestBound : double
+        +incumbentSolution
+        +terminate : bool
+        +mpiCommunicator
+        +cutPoolLocal : list~Cut~
+        +start()
+        +updateBestBound(newBound)
+        +allReduceBestBound()
+    }
+
+    class WorkerProcess {
+        +rank : int
+        +processNode(node : Node)
+        +solveRelaxation(node)
+        +branch(node)
+        +sendWorkRequest(targetRank)
+        +receiveWork()
+    }
+
+    class Node {
+        +subproblem
+        +bound : double
+        +depth : int
+        +isInteger : bool
+    }
+
+    class LocalPool {
+        <<Deque (per rank)>>
+        +push(node : Node)
+        +pop() Node
+    }
+
+    DistributedMPIBnB o-- WorkerProcess : "one per MPI rank"
+    DistributedMPIBnB --> LocalPool : owns
+    WorkerProcess --> LocalPool : owns
+    WorkerProcess --> DistributedMPIBnB : "uses MPI for stealing / bound"
+    LocalPool "1" *-- "*" Node : contains
+    WorkerProcess ..> DistributedMPIBnB : "updates & all-reduces bound"
+
+    note for DistributedMPIBnB "★ Distributed (MPI) Architecture\n★ No shared memory\n★ Scales to clusters / 100s of cores"

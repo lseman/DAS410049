@@ -1,0 +1,52 @@
+classDiagram
+    direction TB
+
+    class MasterWorkerBnB {
+        +sharedBestBound : atomic~double~
+        +incumbentSolution
+        +terminate : atomic_bool
+        +masterPool : Queue~Node~
+        +activeWorkers : atomic_int
+        +cutPool : SharedCutPool
+        +startMasterAndWorkers(numWorkers)
+        +updateBestBound(newBound)
+    }
+
+    class Master {
+        +dispatchWork()
+        +checkAllDone()
+        +collectSolutions()
+    }
+
+    class Worker {
+        +id : int
+        +requestWorkFromMaster()
+        +processNode(node : Node)
+        +solveRelaxation(node)
+        +branch(node)
+        +returnSolution()
+    }
+
+    class Node {
+        +subproblem
+        +bound : double
+        +depth : int
+        +isInteger : bool
+    }
+
+    class CutPool {
+        +addCuts(cuts)
+        +getRelevantCuts() : list~Cut~
+        +purgeUseless()
+    }
+
+    MasterWorkerBnB o-- Master : "1 master"
+    MasterWorkerBnB o-- Worker : "N workers"
+    MasterWorkerBnB --> CutPool : owns
+    Master --> MasterWorkerBnB : owns pool
+    Worker --> Master : "requests / returns nodes"
+    Worker --> CutPool : "reads / adds cuts"
+    Worker ..> MasterWorkerBnB : "updates sharedBestBound"
+    MasterWorkerBnB "1" *-- "*" Node : masterPool contains
+
+    note for MasterWorkerBnB "★ Classic Master-Worker\n★ Easiest termination detection\n★ Master can do smart pruning"
