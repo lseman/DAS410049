@@ -6,350 +6,1131 @@
 <title>B&amp;B Interactive Trace</title>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:ital,wght@0,300;0,400;0,600;1,400&family=Syne:wght@700;800&display=swap" rel="stylesheet">
 <style>
-/* ── tokens ── */
 :root{
-  --bg:#080c12; --s1:#0e1620; --s2:#141e2e; --s3:#1a2840; --bdr:#1e3248;
-  --txt:#b0c4d8; --dim:#4a6580; --dim2:#2d4460;
-  --amb:#e8a020; --amb-d:#4a3000;
-  --tel:#00c4a0; --tel-d:#063a26;
-  --red:#e83a5a; --red-d:#3a0010;
-  --org:#e07030; --org-d:#3a1800;
-  --blu:#38aadc; --blu-d:#0c3060;
+  color-scheme: light;
+  --bg:#f5efe4; --bg2:#fcf8f1; --panel:rgba(255,255,255,.80); --panel2:rgba(255,249,240,.9); --panel3:#efe0cf;
+  --border:#d8c5af; --text:#1e3140; --muted:#687885; --muted2:#9aa5ad;
+  --accent:#b86418; --accent-soft:rgba(184,100,24,.13);
+  --good:#177f68; --good-soft:rgba(23,127,104,.11);
+  --bad:#c14667; --bad-soft:rgba(193,70,103,.11);
+  --warn:#b46a28; --warn-soft:rgba(180,106,40,.13);
+  --blue:#196e97; --blue-soft:rgba(25,110,151,.11);
+  --shadow:0 22px 50px rgba(118,84,46,.12);
+  --tree-dot:#ddcfbf;
+  --page-glow-a:rgba(255,198,127,.34);
+  --page-glow-b:rgba(111,178,208,.22);
+  --page-glow-c:rgba(92,161,131,.14);
+  --scanline:rgba(99,74,46,.03);
+  --chrome:rgba(255,247,238,.62);
+  --stage-wash:linear-gradient(180deg, rgba(255,255,255,.42), rgba(255,255,255,.12));
+  --stage-label-bg:rgba(255,249,242,.88);
+  --node-sheen:rgba(255,255,255,.36);
+  --play-text:#2e1b08;
+  --card-glow:0 1px 0 rgba(255,255,255,.7) inset, 0 22px 50px rgba(118,84,46,.10);
+  --accent-line:linear-gradient(90deg, rgba(184,100,24,.0), rgba(184,100,24,.6), rgba(25,110,151,.45), rgba(25,110,151,0));
 }
-*{ box-sizing:border-box; margin:0; padding:0; }
-
+body[data-theme="dark"]{
+  color-scheme: dark;
+  --bg:#09111a; --bg2:#0d1723; --panel:#101b29; --panel2:#142233; --panel3:#1a2b40;
+  --border:#22364c; --text:#d8e6f3; --muted:#88a3bf; --muted2:#53708d;
+  --accent:#ffb547; --accent-soft:rgba(255,181,71,.12);
+  --good:#2bc48a; --good-soft:rgba(43,196,138,.12);
+  --bad:#ef5b79; --bad-soft:rgba(239,91,121,.12);
+  --warn:#ee8744; --warn-soft:rgba(238,135,68,.12);
+  --blue:#57b5f5; --blue-soft:rgba(87,181,245,.12);
+  --shadow:0 18px 40px rgba(0,0,0,.35);
+  --tree-dot:#22364c;
+  --page-glow-a:rgba(87,181,245,.10);
+  --page-glow-b:rgba(255,181,71,.08);
+  --page-glow-c:rgba(43,196,138,.06);
+  --scanline:rgba(0,0,0,.02);
+  --chrome:rgba(255,255,255,.02);
+  --stage-wash:none;
+  --stage-label-bg:rgba(16,27,41,.86);
+  --node-sheen:rgba(255,255,255,.04);
+  --play-text:#1b1202;
+}
+*{box-sizing:border-box;margin:0;padding:0}
 body{
   font-family:'IBM Plex Mono',monospace;
-  background:var(--bg); color:var(--txt);
-  height:100vh; display:flex; flex-direction:column; overflow:hidden;
-}
-/* scanlines */
-body::after{
-  content:''; position:fixed; inset:0; pointer-events:none; z-index:998;
-  background:repeating-linear-gradient(0deg,transparent,transparent 2px,
-    rgba(0,0,0,.035) 2px,rgba(0,0,0,.035) 4px);
-}
-
-/* ── header ── */
-header{
-  flex-shrink:0; background:var(--s1); border-bottom:1px solid var(--bdr);
-  padding:9px 20px; display:flex; align-items:center; gap:14px;
-}
-.htit{
-  font-family:'Syne',sans-serif; font-size:1.1rem; font-weight:800;
-  color:#fff; letter-spacing:-.02em; white-space:nowrap;
-}
-.htit span{ color:var(--amb); }
-.hprob{
-  font-size:.66rem; color:var(--dim);
-  border-left:1px solid var(--bdr); padding-left:13px; line-height:1.7;
-}
-.hprob b{ color:var(--txt); }
-.hstrat{
-  margin-left:auto; font-size:.63rem; color:var(--dim);
-  border:1px solid var(--bdr); padding:2px 10px; border-radius:3px;
-  white-space:nowrap;
-}
-
-/* ── main layout ── */
-.layout{ flex:1; display:flex; min-height:0; }
-
-/* ── tree panel ── */
-.tree-panel{
-  flex:1; position:relative; overflow:hidden;
-  border-right:1px solid var(--bdr);
   background:
-    radial-gradient(ellipse 60% 50% at 20% 80%,rgba(0,196,160,.025),transparent 60%),
-    radial-gradient(ellipse 60% 50% at 80% 20%,rgba(232,160,32,.025),transparent 60%);
-  cursor:grab;
-}
-.tree-panel.panning{ cursor:grabbing; }
-.tree-panel.panning *{ user-select:none; }
-
-/* zoom controls overlay */
-.zoom-bar{
-  position:absolute; bottom:12px; left:12px; z-index:10;
-  display:flex; align-items:center; gap:5px;
-}
-.zbtn{
-  background:var(--s2); border:1px solid var(--bdr); color:var(--dim);
-  font-family:'IBM Plex Mono',monospace; font-size:.75rem;
-  width:26px; height:26px; border-radius:3px; cursor:pointer;
-  display:flex; align-items:center; justify-content:center;
-  transition:all .1s;
-}
-.zbtn:hover{ border-color:var(--amb); color:var(--amb); }
-.zlbl{
-  font-size:.60rem; color:var(--dim2);
-  background:var(--s2); border:1px solid var(--bdr);
-  padding:3px 7px; border-radius:3px; min-width:46px; text-align:center;
-}
-.zoom-hint{
-  position:absolute; top:10px; left:12px; z-index:10;
-  font-size:.57rem; color:var(--dim2); letter-spacing:.08em;
-}
-
-/* the SVG pans/zooms via a transform on #vp group */
-#treesvg{ display:block; width:100%; height:100%; }
-
-/* ── node tooltip popup ── */
-#tooltip{
-  position:absolute; z-index:100;
-  background:var(--s1); border:1px solid var(--bdr);
-  border-radius:5px; padding:0; min-width:220px; max-width:280px;
-  box-shadow: 0 8px 32px rgba(0,0,0,.6);
-  pointer-events:none; opacity:0;
-  transition: opacity .15s;
+    radial-gradient(circle at top left, var(--page-glow-b), transparent 32%),
+    radial-gradient(circle at 82% 16%, var(--page-glow-a), transparent 26%),
+    radial-gradient(circle at 18% 84%, var(--page-glow-c), transparent 24%),
+    linear-gradient(135deg, rgba(255,255,255,.35), transparent 42%),
+    linear-gradient(180deg, var(--bg2), var(--bg));
+  color:var(--text);
+  font-size:1.03rem;
+  height:100vh;
+  display:flex;
+  flex-direction:column;
   overflow:hidden;
 }
-#tooltip.show{ opacity:1; pointer-events:auto; }
+body::after{
+  content:'';
+  position:fixed;
+  inset:0;
+  pointer-events:none;
+  background:
+    linear-gradient(120deg, transparent 0%, rgba(255,255,255,.12) 45%, transparent 100%),
+    repeating-linear-gradient(0deg,transparent,transparent 3px,var(--scanline) 3px,var(--scanline) 4px);
+  opacity:.45;
+}
+header{
+  position:relative;
+  z-index:1;
+  flex-shrink:0;
+  display:flex;
+  align-items:flex-start;
+  gap:18px;
+  padding:18px 24px 16px;
+  border-bottom:1px solid var(--border);
+  background:var(--chrome);
+  backdrop-filter:blur(8px);
+  box-shadow:0 1px 0 rgba(255,255,255,.55) inset;
+}
+header::after{
+  content:'';
+  position:absolute;
+  left:24px;
+  right:24px;
+  bottom:-1px;
+  height:1px;
+  background:var(--accent-line);
+  opacity:.9;
+}
+.title-block{display:flex;flex-direction:column;gap:8px;min-width:0}
+.htit{
+  font-family:'Syne',sans-serif;
+  font-size:1.72rem;
+  font-weight:800;
+  letter-spacing:-.045em;
+  line-height:1;
+  text-shadow:0 1px 0 rgba(255,255,255,.55);
+}
+.htit span{color:var(--accent)}
+.hprob{color:var(--muted);font-size:.88rem;line-height:1.55;max-width:56ch}
+.hprob b{color:var(--text)}
+.meta-wrap{display:flex;flex-wrap:wrap;gap:8px;align-content:flex-start}
+.meta-chip,.theme-btn{
+  border:1px solid var(--border);
+  background:var(--panel2);
+  color:var(--muted);
+  border-radius:999px;
+  padding:7px 12px;
+  font-size:.72rem;
+  white-space:nowrap;
+  box-shadow:0 1px 0 rgba(255,255,255,.65) inset;
+}
+.compare-strip{
+  padding:10px 12px 0;
+  display:flex;
+  flex-direction:column;
+  gap:10px;
+  flex:0 0 auto;
+}
+.warning-banner{
+  margin:0 12px;
+  border:1px solid color-mix(in srgb, var(--warn) 42%, var(--border));
+  background:linear-gradient(135deg, var(--warn-soft), transparent 85%);
+  border-radius:14px;
+  padding:12px 14px;
+  box-shadow:var(--shadow);
+  flex:0 0 auto;
+}
+.warning-title{
+  font-size:.68rem;
+  letter-spacing:.12em;
+  text-transform:uppercase;
+  color:var(--warn);
+  margin-bottom:6px;
+}
+.warning-body{
+  font-size:.74rem;
+  line-height:1.7;
+  color:var(--text);
+}
+.warning-body b{color:var(--warn)}
+.run-tabs{
+  display:flex;
+  flex-wrap:wrap;
+  gap:8px;
+}
+.run-tab{
+  border:1px solid var(--border);
+  background:var(--panel2);
+  color:var(--muted);
+  border-radius:999px;
+  padding:7px 12px;
+  font-size:.68rem;
+  cursor:pointer;
+}
+.run-tab.active{
+  border-color:var(--accent);
+  color:var(--accent);
+  background:var(--accent-soft);
+}
+.compare-grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(150px,1fr));
+  gap:8px;
+}
+.compare-card{
+  border:1px solid var(--border);
+  background:var(--panel);
+  border-radius:12px;
+  padding:10px 12px;
+  box-shadow:var(--card-glow);
+}
+.compare-card.active{
+  border-color:var(--accent);
+  box-shadow:0 0 0 1px var(--accent-soft), var(--shadow);
+}
+.compare-title{
+  font-size:.66rem;
+  text-transform:uppercase;
+  letter-spacing:.12em;
+  color:var(--muted2);
+  margin-bottom:8px;
+}
+.compare-main{
+  font-size:.88rem;
+  color:var(--text);
+  margin-bottom:8px;
+}
+.compare-meta{
+  display:grid;
+  grid-template-columns:auto 1fr;
+  gap:4px 8px;
+  font-size:.66rem;
+}
+.compare-meta .k{font-size:.62rem}
+.compare-meta .v{font-size:.66rem}
+.inc-list{
+  margin-top:10px;
+  display:flex;
+  flex-direction:column;
+  gap:6px;
+}
+.inc-empty{
+  font-size:.64rem;
+  color:var(--muted2);
+  font-style:italic;
+}
+.inc-item{
+  border-top:1px solid var(--border);
+  padding-top:6px;
+  font-size:.64rem;
+  line-height:1.55;
+}
+.inc-head{
+  color:var(--text);
+}
+.inc-sol{
+  color:var(--muted);
+  overflow-wrap:anywhere;
+  word-break:break-word;
+}
+.meta-chip b{color:var(--text)}
+.theme-btn{
+  margin-left:auto;
+  cursor:pointer;
+  color:var(--text);
+  transition:.15s ease;
+}
+.theme-btn:hover{border-color:var(--accent);color:var(--accent)}
+.layout{flex:1;display:flex;min-height:0}
+.tree-panel{
+  flex:1;
+  display:grid;
+  grid-template-columns:minmax(0,1fr) minmax(0,1fr);
+  gap:12px;
+  min-width:0;
+  padding:12px;
+  border-right:1px solid var(--border);
+  background:
+    radial-gradient(ellipse 60% 50% at 20% 80%, var(--page-glow-c), transparent 60%),
+    radial-gradient(ellipse 60% 50% at 80% 20%, var(--page-glow-b), transparent 60%);
+}
+.tree-stage{
+  position:relative;
+  overflow:hidden;
+  border:1px solid var(--border);
+  border-radius:18px;
+  background:var(--stage-wash), var(--chrome);
+  box-shadow:var(--card-glow);
+  min-width:0;
+}
+.tree-stage::before{
+  content:'';
+  position:absolute;
+  inset:0;
+  pointer-events:none;
+  background:
+    linear-gradient(180deg, rgba(255,255,255,.24), transparent 22%),
+    radial-gradient(circle at top right, rgba(255,255,255,.34), transparent 22%);
+}
+.tree-stage.interactive{cursor:grab}
+.tree-stage.interactive.panning{cursor:grabbing}
+.tree-stage.interactive.panning *{user-select:none}
+.tree-stage-head{
+  position:absolute;
+  top:10px;
+  left:12px;
+  right:12px;
+  z-index:10;
+  display:flex;
+  justify-content:space-between;
+  gap:10px;
+  pointer-events:none;
+}
+.tree-stage-title{
+  display:inline-flex;
+  align-items:center;
+  gap:8px;
+  border:1px solid var(--border);
+  background:var(--stage-label-bg);
+  color:var(--text);
+  border-radius:999px;
+  padding:7px 12px;
+  font-size:.68rem;
+  box-shadow:0 1px 0 rgba(255,255,255,.7) inset;
+}
+.tree-stage-title b{color:var(--accent)}
+.tree-stage-meta{
+  border:1px solid var(--border);
+  background:var(--stage-label-bg);
+  color:var(--muted);
+  border-radius:999px;
+  padding:7px 12px;
+  font-size:.64rem;
+  box-shadow:0 1px 0 rgba(255,255,255,.7) inset;
+}
+.zoom-hint{
+  position:absolute;top:52px;left:12px;z-index:10;
+  font-size:.6rem;color:var(--muted2);letter-spacing:.08em
+}
+.zoom-bar{
+  position:absolute;bottom:12px;left:12px;z-index:10;
+  display:flex;align-items:center;gap:6px
+}
+.zbtn,.btn{
+  background:var(--panel2);
+  border:1px solid var(--border);
+  color:var(--text);
+  font-family:'IBM Plex Mono',monospace;
+  border-radius:8px;
+  cursor:pointer;
+  transition:.15s ease;
+}
+.zbtn{
+  width:30px;height:30px;font-size:.85rem;display:flex;align-items:center;justify-content:center
+}
+.zbtn:hover,.btn:hover:not(:disabled){border-color:var(--accent);color:var(--accent)}
+.zlbl{
+  font-size:.62rem;color:var(--muted);
+  background:var(--panel2);border:1px solid var(--border);
+  padding:6px 9px;border-radius:8px;min-width:50px;text-align:center
+}
+.treesvg{display:block;width:100%;height:100%}
+#tooltip{
+  position:absolute;z-index:100;background:var(--panel);
+  border:1px solid var(--border);border-radius:12px;min-width:240px;max-width:320px;
+  box-shadow:var(--card-glow);pointer-events:none;opacity:0;transition:opacity .15s;
+  overflow:hidden
+}
+#tooltip.show{opacity:1;pointer-events:auto}
 .tt-hdr{
-  padding:7px 11px; font-size:.62rem; font-weight:600;
-  letter-spacing:.1em; text-transform:uppercase;
-  border-bottom:1px solid var(--bdr);
+  padding:10px 14px;font-size:.67rem;font-weight:600;letter-spacing:.1em;text-transform:uppercase;
+  border-bottom:1px solid var(--border)
 }
 .tt-body{
-  padding:9px 11px; font-size:.70rem; line-height:1.85;
-  display:grid; grid-template-columns:auto 1fr; gap:3px 10px;
+  padding:12px 14px;font-size:.72rem;line-height:1.8;
+  display:grid;grid-template-columns:auto 1fr;gap:4px 10px
 }
-.tt-k{ color:var(--dim); }
-.tt-v{ color:var(--txt); }
-.tt-z{ color:var(--amb); font-weight:600; }
-.tt-full{ grid-column:1/-1; }
+.tt-k{color:var(--muted)} .tt-v{color:var(--text)} .tt-z{color:var(--accent);font-weight:600}
+.tt-full{grid-column:1/-1}
 .tt-close{
-  position:absolute; top:6px; right:8px;
-  background:none; border:none; color:var(--dim);
-  font-size:.9rem; cursor:pointer; padding:2px 5px; line-height:1;
+  position:absolute;top:6px;right:8px;background:none;border:none;color:var(--muted);
+  font-size:1rem;cursor:pointer;padding:2px 5px;line-height:1
 }
-.tt-close:hover{ color:var(--txt); }
 .tt-jump{
-  display:block; margin:8px 11px 10px;
-  background:var(--s3); border:1px solid var(--bdr);
-  color:var(--dim); font-family:'IBM Plex Mono',monospace;
-  font-size:.65rem; padding:4px 10px; border-radius:3px;
-  cursor:pointer; text-align:center; transition:all .12s;
+  display:block;margin:8px 14px 14px;background:var(--panel3);border:1px solid var(--border);
+  color:var(--muted);font-family:'IBM Plex Mono',monospace;font-size:.67rem;
+  padding:7px 10px;border-radius:8px;cursor:pointer;text-align:center
 }
-.tt-jump:hover{ border-color:var(--amb); color:var(--amb); }
-
-/* ── info panel ── */
+.tt-jump:hover{border-color:var(--accent);color:var(--accent)}
 .info{
-  width:312px; flex-shrink:0; display:flex; flex-direction:column;
-  overflow-y:auto; background:var(--s1);
+  width:430px;flex-shrink:0;display:flex;flex-direction:column;overflow-y:auto;
+  background:var(--chrome)
 }
 .shdr{
-  padding:10px 14px 7px; border-bottom:1px solid var(--bdr);
-  display:flex; align-items:center; gap:7px; flex-wrap:wrap;
+  padding:16px 18px 10px;border-bottom:1px solid var(--border);
+  display:flex;align-items:center;gap:12px;flex-wrap:wrap;
+  flex:0 0 auto
 }
 .bdg{
-  font-size:.57rem; font-weight:600; letter-spacing:.12em;
-  text-transform:uppercase; padding:2px 8px; border-radius:2px; white-space:nowrap;
+  font-size:.72rem;font-weight:700;letter-spacing:.12em;text-transform:uppercase;
+  padding:6px 11px;border-radius:999px
 }
-.b-st{ background:var(--s3); color:var(--dim); }
-.b-lp{ background:var(--blu-d); color:var(--blu); }
-.b-br{ background:var(--amb-d); color:var(--amb); }
-.b-it{ background:var(--tel-d); color:var(--tel); }
-.b-if{ background:var(--red-d); color:var(--red); }
-.b-bd{ background:var(--org-d); color:var(--org); }
-.b-dn{ background:var(--tel-d); color:var(--tel); }
-.snum{ font-size:.61rem; color:var(--dim); margin-left:auto; }
+.b-st{background:var(--panel3);color:var(--muted)}
+.b-lp{background:var(--blue-soft);color:var(--blue)}
+.b-br{background:var(--accent-soft);color:var(--accent)}
+.b-it{background:var(--good-soft);color:var(--good)}
+.b-if{background:var(--bad-soft);color:var(--bad)}
+.b-bd{background:var(--warn-soft);color:var(--warn)}
+.b-dn{background:var(--good-soft);color:var(--good)}
+.snum{font-size:.82rem;color:var(--muted);margin-left:auto}
 .sdesc{
-  padding:10px 14px; font-size:.72rem; line-height:1.9; color:var(--txt);
-  border-bottom:1px solid var(--bdr); min-height:66px;
+  padding:16px 18px;line-height:1.8;color:var(--text);border-bottom:1px solid var(--border);
+  min-height:92px;
+  height:auto;
+  flex:0 0 auto;
+  overflow:visible;
+  overflow-wrap:anywhere;
+  word-break:break-word
 }
-.sdesc b{ color:#fff; }
-.ncard{
-  margin:8px; background:var(--s2);
-  border:1px solid var(--bdr); border-radius:4px; overflow:hidden;
+.panel-card{
+  margin:12px;
+  background:var(--panel);
+  border:1px solid var(--border);
+  border-radius:14px;
+  overflow:visible;
+  box-shadow:var(--card-glow);
+  flex:0 0 auto;
 }
-.nchdr{
-  padding:5px 11px; font-size:.57rem; text-transform:uppercase;
-  letter-spacing:.12em; color:var(--dim);
-  background:var(--s3); border-bottom:1px solid var(--bdr);
+.card-h{
+  padding:10px 14px;
+  font-size:.72rem;
+  text-transform:uppercase;
+  letter-spacing:.12em;
+  color:var(--muted);
+  background:var(--panel2);
+  border-bottom:1px solid var(--border);
 }
-.ncbody{
-  padding:7px 11px; display:grid;
-  grid-template-columns:auto 1fr; gap:3px 11px; font-size:.68rem;
+.grid-body{
+  padding:12px 14px;
+  display:grid;
+  grid-template-columns:minmax(72px,max-content) minmax(0,1fr);
+  gap:7px 14px;
+  font-size:.87rem;
+  align-items:start;
 }
-.nck{ color:var(--dim); } .ncv{ color:var(--txt); }
-.ncz{ color:var(--amb); font-weight:600; }
-.ncsp{ grid-column:1/-1; }
-.pbox{
-  margin:0 8px 8px; border-left:2px solid;
-  padding:7px 11px; border-radius:0 3px 3px 0;
-  font-size:.69rem; line-height:1.65;
+.grid-body > *{min-width:0}
+.k{color:var(--muted)}
+.v{color:var(--text);min-width:0;overflow-wrap:anywhere;word-break:break-word}
+.accent{color:var(--accent);font-weight:600;min-width:0;overflow-wrap:anywhere;word-break:break-word}
+.dimline{grid-column:1/-1;color:var(--muted2);font-size:.68rem;line-height:1.6}
+.run-config{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;padding:12px 14px}
+.pill{
+  border:1px solid var(--border);
+  background:var(--panel2);
+  border-radius:10px;
+  padding:9px 10px;
+  min-width:0;
+  box-shadow:0 1px 0 rgba(255,255,255,.6) inset;
 }
-.pi{ border-color:var(--red); background:rgba(232,58,90,.07); }
-.pb{ border-color:var(--org); background:rgba(224,112,48,.07); }
-.pttl{
-  font-size:.59rem; font-weight:600; text-transform:uppercase;
-  letter-spacing:.12em; margin-bottom:3px;
+.pill-l{display:block;font-size:.6rem;letter-spacing:.1em;text-transform:uppercase;color:var(--muted2);margin-bottom:4px}
+.pill-v{display:block;font-size:.78rem;color:var(--text)}
+.candidate-list{padding:12px 14px;display:flex;flex-direction:column;gap:10px}
+.candidate-empty{color:var(--muted2);font-size:.78rem}
+.teach-text{
+  padding:12px 14px;
+  font-size:.78rem;
+  line-height:1.7;
+  color:var(--text);
 }
-.pi .pttl{ color:var(--red); } .pb .pttl{ color:var(--org); }
-.bbox{
-  margin:0 8px 8px; background:var(--s2);
-  border:1px solid var(--bdr); border-radius:4px; padding:8px 11px;
+.teach-text b{color:var(--accent)}
+.teach-toggle-wrap{
+  padding:10px 12px 0;
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:10px;
+  flex:0 0 auto;
 }
-.blbl{
-  font-size:.57rem; text-transform:uppercase; letter-spacing:.12em;
-  color:var(--dim); margin-bottom:4px;
+.teach-controls{
+  display:flex;
+  flex-wrap:wrap;
+  gap:8px;
+  align-items:center;
+  min-width:0;
 }
-.bval{ font-size:1.35rem; font-weight:600; color:var(--tel); transition:color .3s; }
-.bval.none{ color:var(--dim); font-size:.77rem; font-style:italic; font-weight:400; }
-.bsol{ font-size:.66rem; color:var(--dim); margin-top:2px; }
-.qbox{
-  margin:0 8px 8px; background:var(--s2);
-  border:1px solid var(--bdr); border-radius:4px; padding:8px 11px;
+.mode-label{
+  font-size:.62rem;
+  color:var(--muted2);
+  letter-spacing:.12em;
+  text-transform:uppercase;
 }
-.qlbl{
-  font-size:.57rem; text-transform:uppercase; letter-spacing:.12em;
-  color:var(--dim); margin-bottom:5px;
+.teach-toggle{
+  border:1px solid var(--border);
+  background:var(--panel2);
+  color:var(--muted);
+  border-radius:999px;
+  padding:6px 11px;
+  font-size:.66rem;
+  cursor:pointer;
 }
-.qchips{ display:flex; flex-wrap:wrap; gap:3px; }
+.teach-toggle.on{
+  border-color:var(--accent);
+  color:var(--accent);
+  background:var(--accent-soft);
+}
+.mode-pill{
+  border:1px solid var(--border);
+  background:var(--panel2);
+  color:var(--muted);
+  border-radius:999px;
+  padding:6px 10px;
+  font-size:.66rem;
+  cursor:pointer;
+}
+.mode-pill.active{
+  border-color:var(--blue);
+  color:var(--blue);
+  background:var(--blue-soft);
+}
+.focus-banner{
+  margin:12px 12px 0;
+  border:1px solid var(--border);
+  background:
+    radial-gradient(circle at top right, rgba(255,255,255,.34), transparent 30%),
+    linear-gradient(135deg, var(--blue-soft), transparent 85%);
+  border-radius:14px;
+  padding:11px 14px;
+  box-shadow:var(--card-glow);
+  flex:0 0 auto;
+}
+.focus-title{
+  font-size:.62rem;
+  letter-spacing:.12em;
+  text-transform:uppercase;
+  color:var(--blue);
+  margin-bottom:4px;
+}
+.focus-body{
+  font-size:.76rem;
+  line-height:1.7;
+  color:var(--text);
+}
+.timeline{
+  padding:12px 14px;
+  display:flex;
+  flex-direction:column;
+  gap:10px;
+}
+.timeline-track{
+  display:flex;
+  gap:8px;
+  overflow-x:auto;
+  padding-bottom:4px;
+}
+.timeline-item{
+  min-width:138px;
+  border:1px solid var(--border);
+  background:var(--panel2);
+  border-radius:12px;
+  padding:9px 10px;
+  opacity:.58;
+  box-shadow:0 1px 0 rgba(255,255,255,.55) inset;
+}
+.timeline-item.done{
+  opacity:1;
+  border-color:color-mix(in srgb, var(--blue) 45%, var(--border));
+}
+.timeline-item.current{
+  border-color:var(--accent);
+  background:linear-gradient(135deg, var(--accent-soft), transparent 85%);
+  opacity:1;
+}
+.timeline-name{
+  font-size:.62rem;
+  letter-spacing:.1em;
+  text-transform:uppercase;
+  color:var(--muted2);
+  margin-bottom:5px;
+}
+.timeline-item.done .timeline-name{color:var(--blue)}
+.timeline-item.current .timeline-name{color:var(--accent)}
+.timeline-meta{
+  font-size:.72rem;
+  color:var(--text);
+  line-height:1.5;
+}
+.timeline-summary{
+  font-size:.68rem;
+  color:var(--muted);
+  line-height:1.6;
+}
+.compare-dual{
+  padding:12px 14px;
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:10px;
+}
+.single-run .tree-panel{
+  grid-template-columns:minmax(0,1fr);
+}
+.single-run #treepanel-secondary{
+  display:none;
+}
+.single-run #compare-strip{
+  display:none;
+}
+.compare-pane{
+  border:1px solid var(--border);
+  background:var(--panel2);
+  border-radius:12px;
+  padding:10px 11px;
+  box-shadow:0 1px 0 rgba(255,255,255,.55) inset;
+}
+.compare-pane.active{
+  border-color:var(--accent);
+  background:linear-gradient(135deg, var(--accent-soft), transparent 85%);
+}
+.compare-pane.secondary{
+  border-color:color-mix(in srgb, var(--blue) 40%, var(--border));
+  background:linear-gradient(135deg, var(--blue-soft), transparent 85%);
+}
+.compare-pane-head{
+  display:flex;
+  justify-content:space-between;
+  gap:8px;
+  margin-bottom:8px;
+  font-size:.68rem;
+  color:var(--muted);
+}
+.compare-pane-title{
+  color:var(--text);
+}
+.compare-pane-body{
+  display:grid;
+  grid-template-columns:auto 1fr;
+  gap:5px 9px;
+  font-size:.7rem;
+}
+.compare-pane-body .k{
+  font-size:.62rem;
+  text-transform:uppercase;
+  letter-spacing:.08em;
+}
+.compare-picker{
+  border:1px solid var(--border);
+  background:var(--panel2);
+  color:var(--text);
+  border-radius:999px;
+  padding:6px 10px;
+  font-size:.66rem;
+  font-family:'IBM Plex Mono',monospace;
+  max-width:100%;
+}
+.formula-stack,.counter-stack,.fractionality-stack,.learning-stack{
+  padding:12px 14px;
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+}
+.formula-item,.counter-item,.frac-item,.learning-item{
+  border:1px solid var(--border);
+  background:var(--panel2);
+  border-radius:12px;
+  padding:10px 12px;
+  box-shadow:0 1px 0 rgba(255,255,255,.55) inset;
+}
+.formula-head,.counter-head,.frac-head,.learning-head{
+  display:flex;
+  justify-content:space-between;
+  gap:8px;
+  font-size:.74rem;
+  color:var(--text);
+}
+.formula-detail,.counter-detail,.learning-detail{
+  margin-top:5px;
+  font-size:.68rem;
+  color:var(--muted);
+  line-height:1.6;
+}
+.formula-code{
+  margin-top:7px;
+  font-size:.68rem;
+  color:var(--accent);
+  line-height:1.6;
+  overflow-wrap:anywhere;
+  word-break:break-word;
+}
+.frac-bar{
+  margin-top:7px;
+  height:8px;
+  border-radius:999px;
+  background:var(--panel3);
+  overflow:hidden;
+}
+.frac-fill{
+  height:100%;
+  background:linear-gradient(90deg, var(--blue), var(--accent));
+}
+.frac-detail{
+  margin-top:5px;
+  font-size:.66rem;
+  color:var(--muted);
+}
+.learning-metrics{
+  margin-top:7px;
+  display:grid;
+  grid-template-columns:auto 1fr;
+  gap:4px 10px;
+  font-size:.66rem;
+}
+.learning-metrics .k{font-size:.62rem}
+.learning-spark{
+  margin-top:8px;
+  border-top:1px solid var(--border);
+  padding-top:8px;
+}
+.learning-spark svg{
+  width:100%;
+  height:44px;
+  display:block;
+}
+.empty-note{
+  font-size:.74rem;
+  color:var(--muted2);
+}
+.math-box{
+  margin-top:10px;
+  border-top:1px solid var(--border);
+  padding-top:10px;
+  font-size:.7rem;
+  color:var(--muted);
+  line-height:1.7;
+}
+.math-box code{color:var(--accent)}
+.bound-grid{
+  padding:12px 14px;
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:8px;
+}
+.bound-cell{
+  border:1px solid var(--border);
+  background:var(--panel2);
+  border-radius:12px;
+  padding:10px 11px;
+  box-shadow:0 1px 0 rgba(255,255,255,.55) inset;
+}
+.bound-label{
+  display:block;
+  font-size:.6rem;
+  letter-spacing:.12em;
+  text-transform:uppercase;
+  color:var(--muted2);
+  margin-bottom:5px;
+}
+.bound-value{
+  display:block;
+  font-size:.9rem;
+  color:var(--text);
+}
+.bound-note{
+  grid-column:1/-1;
+  font-size:.7rem;
+  color:var(--muted);
+  line-height:1.6;
+}
+.delta-list{
+  padding:12px 14px;
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+}
+.delta-item{
+  border:1px solid var(--border);
+  background:var(--panel2);
+  border-radius:12px;
+  padding:9px 11px;
+  font-size:.7rem;
+  color:var(--text);
+  line-height:1.6;
+  box-shadow:0 1px 0 rgba(255,255,255,.55) inset;
+}
+.delta-empty{
+  font-size:.74rem;
+  color:var(--muted2);
+}
+.chart-stack{
+  padding:12px 14px;
+  display:flex;
+  flex-direction:column;
+  gap:10px;
+}
+.mini-chart{
+  border:1px solid var(--border);
+  background:var(--panel2);
+  border-radius:12px;
+  padding:8px 10px;
+  box-shadow:0 1px 0 rgba(255,255,255,.55) inset;
+}
+.mini-chart-head{
+  display:flex;
+  justify-content:space-between;
+  gap:8px;
+  margin-bottom:6px;
+  font-size:.64rem;
+  color:var(--muted);
+}
+.mini-chart svg{
+  width:100%;
+  height:44px;
+  display:block;
+}
+.alt-list{
+  padding:12px 14px;
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+}
+.alt-empty{
+  font-size:.74rem;
+  color:var(--muted2);
+}
+.alt-item{
+  border:1px solid var(--border);
+  background:var(--panel2);
+  border-radius:12px;
+  padding:10px 12px;
+  box-shadow:0 1px 0 rgba(255,255,255,.55) inset;
+}
+.alt-head{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:8px;
+  font-size:.76rem;
+  color:var(--text);
+}
+.alt-detail{
+  margin-top:4px;
+  font-size:.68rem;
+  color:var(--muted);
+  line-height:1.6;
+}
+.candidate{
+  border:1px solid var(--border);
+  background:var(--panel2);
+  border-radius:12px;
+  padding:10px 12px;
+  overflow:visible;
+  box-shadow:0 1px 0 rgba(255,255,255,.55) inset;
+}
+.candidate.top{border-color:color-mix(in srgb, var(--accent) 45%, var(--border))}
+.candidate-line{
+  display:flex;align-items:flex-start;gap:8px;flex-wrap:wrap;
+  font-size:.8rem
+}
+.rank{
+  width:24px;height:24px;border-radius:999px;
+  display:inline-flex;align-items:center;justify-content:center;
+  background:var(--panel3);color:var(--muted);font-size:.72rem
+}
+.candidate.top .rank{background:var(--accent-soft);color:var(--accent)}
+.tag{
+  font-size:.62rem;padding:3px 7px;border-radius:999px;border:1px solid var(--border);color:var(--muted)
+}
+.detail{margin-top:6px;font-size:.69rem;line-height:1.6;color:var(--muted);overflow-wrap:anywhere;word-break:break-word}
+.score{margin-left:auto;color:var(--blue);font-size:.72rem;overflow-wrap:anywhere;word-break:break-word;max-width:100%}
+.callout{
+  margin:0 12px 12px;border-left:3px solid;padding:9px 12px;border-radius:0 10px 10px 0;
+  font-size:.72rem;line-height:1.65;
+  flex:0 0 auto
+}
+.pi{border-color:var(--bad);background:var(--bad-soft)}
+.pb{border-color:var(--warn);background:var(--warn-soft)}
+.callout .ttl{font-size:.62rem;font-weight:700;text-transform:uppercase;letter-spacing:.12em;margin-bottom:4px}
+.bbox,.qbox{margin:0 12px 12px;background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:12px 14px;box-shadow:var(--card-glow);overflow:visible;flex:0 0 auto}
+.blbl,.qlbl{font-size:.62rem;text-transform:uppercase;letter-spacing:.12em;color:var(--muted);margin-bottom:6px}
+.bval{font-size:1.22rem;font-weight:600;color:var(--good)}
+.bval.none{color:var(--muted);font-size:.82rem;font-style:italic;font-weight:400}
+.bsol{font-size:.68rem;color:var(--muted);margin-top:4px;line-height:1.6;overflow-wrap:anywhere;word-break:break-word}
+.qchips{display:flex;flex-wrap:wrap;gap:6px}
 .qchip{
-  background:var(--s3); border:1px solid var(--bdr); border-radius:2px;
-  padding:1px 7px; font-size:.62rem; color:var(--dim);
-  cursor:pointer; transition:all .1s;
+  background:var(--panel2);border:1px solid var(--border);border-radius:999px;
+  padding:4px 9px;font-size:.66rem;color:var(--muted);cursor:pointer;transition:.15s ease
 }
-.qchip:hover{ border-color:var(--amb); color:var(--amb); }
-.qmt{ font-size:.62rem; color:var(--dim2); font-style:italic; }
+.qchip:hover{border-color:var(--accent);color:var(--accent)}
+.qmt{font-size:.68rem;color:var(--muted2);font-style:italic}
 .legend{
-  padding:6px 8px 8px; margin-top:auto;
-  display:flex; flex-wrap:wrap; gap:4px 12px;
+  padding:8px 12px 12px;margin-top:auto;display:flex;flex-wrap:wrap;gap:5px 12px;flex:0 0 auto
 }
-.leg{ display:flex; align-items:center; gap:5px; font-size:.59rem; color:var(--dim); }
-.ldot{ width:7px; height:7px; border-radius:1px; flex-shrink:0; }
-
-/* ── nav bar ── */
+.leg{display:flex;align-items:center;gap:5px;font-size:.6rem;color:var(--muted)}
+.ldot{width:9px;height:9px;border-radius:3px;flex-shrink:0}
 .nav{
-  flex-shrink:0; border-top:1px solid var(--bdr); background:var(--s1);
-  padding:8px 16px; display:flex; align-items:center; gap:8px; flex-wrap:wrap;
+  flex-shrink:0;border-top:1px solid var(--border);background:var(--chrome);
+  padding:10px 14px;display:flex;align-items:center;gap:8px;flex-wrap:wrap
 }
 .btn{
-  background:none; border:1px solid var(--bdr); color:var(--txt);
-  font-family:'IBM Plex Mono',monospace; font-size:.68rem;
-  padding:5px 12px; border-radius:3px; cursor:pointer;
-  transition:all .1s; white-space:nowrap;
+  font-size:.94rem;padding:9px 15px
 }
-.btn:hover:not(:disabled){ border-color:var(--amb); color:var(--amb); }
-.btn:disabled{ opacity:.2; cursor:not-allowed; }
-.bplay{
-  background:var(--amb); border-color:var(--amb);
-  color:#000; font-weight:600;
+.btn,.qchip,.run-tab,.teach-toggle,.mode-pill,.theme-btn{
+  transition:transform .16s ease,border-color .16s ease,color .16s ease,background .16s ease,box-shadow .16s ease;
 }
-.bplay:hover:not(:disabled){ background:#f0b030; color:#000; }
-.bplay.on{
-  background:var(--s3); border-color:var(--bdr); color:var(--txt);
+.btn:hover:not(:disabled),.qchip:hover,.run-tab:hover,.teach-toggle:hover,.mode-pill:hover,.theme-btn:hover{
+  transform:translateY(-1px);
+  box-shadow:0 8px 18px rgba(118,84,46,.08);
 }
-.bplay.on:hover{ border-color:var(--amb); color:var(--amb); }
-
-/* step slider */
-.step-wrap{ flex:1; min-width:80px; display:flex; flex-direction:column; gap:2px; }
-input[type=range]{ width:100%; accent-color:var(--amb); cursor:pointer; height:3px; }
-
-/* speed control */
-.speed-wrap{
-  display:flex; align-items:center; gap:6px;
-  font-size:.63rem; color:var(--dim); white-space:nowrap;
+.btn:disabled{opacity:.28;cursor:not-allowed}
+.bplay{background:var(--accent);border-color:var(--accent);color:var(--play-text);font-weight:700}
+.bplay:hover:not(:disabled){filter:brightness(1.04);color:var(--play-text)}
+.bplay.on{background:var(--panel3);border-color:var(--border);color:var(--text)}
+.step-wrap{flex:1;min-width:80px;display:flex;flex-direction:column;gap:2px}
+input[type=range]{width:100%;accent-color:var(--accent);cursor:pointer}
+.speed-wrap{display:flex;align-items:center;gap:6px;font-size:.63rem;color:var(--muted);white-space:nowrap}
+.speed-wrap input[type=range]{width:72px}
+#speed-lbl{color:var(--accent);min-width:30px;text-align:right}
+.sctr{font-size:.66rem;color:var(--muted);white-space:nowrap}
+table{width:100%}
+@media (max-width: 980px){
+  .layout{flex-direction:column}
+  .info{width:100%;max-height:46vh}
+  .tree-panel{min-height:54vh;border-right:none;border-bottom:1px solid var(--border);grid-template-columns:1fr}
+  header{flex-wrap:wrap}
+  .theme-btn{margin-left:0}
+  .compare-dual{grid-template-columns:1fr}
 }
-.speed-wrap input[type=range]{ width:70px; }
-#speed-lbl{ color:var(--amb); min-width:28px; text-align:right; }
-
-.sctr{ font-size:.64rem; color:var(--dim); white-space:nowrap; }
+@media (max-width: 1350px){
+  .grid-body{
+    grid-template-columns:1fr;
+    gap:4px 0;
+  }
+  .k{
+    margin-top:6px;
+    font-size:.68rem;
+    letter-spacing:.06em;
+    text-transform:uppercase;
+  }
+  .k:first-child{margin-top:0}
+}
 </style>
 </head>
-<body>
-
+<body data-theme="light">
 <header>
-  <div class="htit">Branch <span>&amp;</span> Bound</div>
-  <div class="hprob"><b id="pname"></b><br><span id="pobj"></span></div>
-  <div class="hstrat" id="pstrat"></div>
+  <div class="title-block">
+    <div class="htit">Branch <span>&amp;</span> Bound</div>
+    <div class="hprob"><b id="pname"></b><br><span id="pobj"></span></div>
+  </div>
+  <div class="meta-wrap" id="header-meta"></div>
+  <button class="theme-btn" id="theme-toggle" type="button">Dark Mode</button>
 </header>
 
 <div class="layout">
-
-  <!-- ── TREE PANEL ── -->
   <div class="tree-panel" id="treepanel">
-    <div class="zoom-hint">scroll to zoom &nbsp;·&nbsp; drag to pan &nbsp;·&nbsp; click node for details</div>
-    <svg id="treesvg">
-      <defs>
-        <filter id="glow-amb" x="-40%" y="-40%" width="180%" height="180%">
-          <feGaussianBlur in="SourceAlpha" stdDeviation="5" result="b"/>
-          <feFlood flood-color="#e8a020" flood-opacity="0.45" result="c"/>
-          <feComposite in="c" in2="b" operator="in" result="sh"/>
-          <feMerge><feMergeNode in="sh"/><feMergeNode in="SourceGraphic"/></feMerge>
-        </filter>
-        <filter id="glow-tel" x="-40%" y="-40%" width="180%" height="180%">
-          <feGaussianBlur in="SourceAlpha" stdDeviation="5" result="b"/>
-          <feFlood flood-color="#00c4a0" flood-opacity="0.45" result="c"/>
-          <feComposite in="c" in2="b" operator="in" result="sh"/>
-          <feMerge><feMergeNode in="sh"/><feMergeNode in="SourceGraphic"/></feMerge>
-        </filter>
-        <filter id="glow-red" x="-40%" y="-40%" width="180%" height="180%">
-          <feGaussianBlur in="SourceAlpha" stdDeviation="5" result="b"/>
-          <feFlood flood-color="#e83a5a" flood-opacity="0.4" result="c"/>
-          <feComposite in="c" in2="b" operator="in" result="sh"/>
-          <feMerge><feMergeNode in="sh"/><feMergeNode in="SourceGraphic"/></feMerge>
-        </filter>
-      </defs>
-      <!-- dot grid bg -->
-      <g id="dotgrid" opacity="0.5"></g>
-      <!-- zoomable viewport group -->
-      <g id="vp"></g>
-    </svg>
+    <div class="tree-stage interactive" id="treepanel-main">
+      <div class="tree-stage-head">
+        <div class="tree-stage-title">Active <b id="tree-main-label"></b></div>
+        <div class="tree-stage-meta" id="tree-main-meta"></div>
+      </div>
+      <div class="zoom-hint">scroll to zoom · drag to pan · click node for details</div>
+      <svg class="treesvg" id="treesvg-main">
+        <defs>
+          <filter id="glow-amb" x="-40%" y="-40%" width="180%" height="180%">
+            <feGaussianBlur in="SourceAlpha" stdDeviation="5" result="b"/>
+            <feFlood flood-color="#ffb547" flood-opacity="0.35" result="c"/>
+            <feComposite in="c" in2="b" operator="in" result="sh"/>
+            <feMerge><feMergeNode in="sh"/><feMergeNode in="SourceGraphic"/></feMerge>
+          </filter>
+          <filter id="glow-good" x="-40%" y="-40%" width="180%" height="180%">
+            <feGaussianBlur in="SourceAlpha" stdDeviation="5" result="b"/>
+            <feFlood flood-color="#2bc48a" flood-opacity="0.35" result="c"/>
+            <feComposite in="c" in2="b" operator="in" result="sh"/>
+            <feMerge><feMergeNode in="sh"/><feMergeNode in="SourceGraphic"/></feMerge>
+          </filter>
+        </defs>
+        <g id="dotgrid-main" opacity="0.55"></g>
+        <g id="vp-main"></g>
+      </svg>
 
-    <!-- zoom controls -->
-    <div class="zoom-bar">
-      <button class="zbtn" id="zin"  title="Zoom in">+</button>
-      <button class="zbtn" id="zout" title="Zoom out">−</button>
-      <button class="zbtn" id="zfit" title="Fit tree" style="font-size:.65rem">⊡</button>
-      <span class="zlbl" id="zpct">100%</span>
+      <div class="zoom-bar">
+        <button class="zbtn" id="zin" title="Zoom in">+</button>
+        <button class="zbtn" id="zout" title="Zoom out">−</button>
+        <button class="zbtn" id="zfit" title="Fit tree">⊡</button>
+        <span class="zlbl" id="zpct">100%</span>
+      </div>
+
+      <div id="tooltip">
+        <div class="tt-hdr" id="tt-hdr">P0</div>
+        <button class="tt-close" id="tt-close" type="button">✕</button>
+        <div class="tt-body" id="tt-body"></div>
+        <button class="tt-jump" id="tt-jump" type="button">Jump to this node's step →</button>
+      </div>
     </div>
 
-    <!-- node tooltip -->
-    <div id="tooltip">
-      <div class="tt-hdr" id="tt-hdr">P0</div>
-      <button class="tt-close" id="tt-close">✕</button>
-      <div class="tt-body" id="tt-body"></div>
-      <button class="tt-jump" id="tt-jump">Jump to this node's step →</button>
+    <div class="tree-stage" id="treepanel-secondary">
+      <div class="tree-stage-head">
+        <div class="tree-stage-title">Compare <b id="tree-secondary-label"></b></div>
+        <div class="tree-stage-meta" id="tree-secondary-meta"></div>
+      </div>
+      <svg class="treesvg" id="treesvg-secondary">
+        <defs>
+          <filter id="glow-amb-secondary" x="-40%" y="-40%" width="180%" height="180%">
+            <feGaussianBlur in="SourceAlpha" stdDeviation="5" result="b"/>
+            <feFlood flood-color="#ffb547" flood-opacity="0.35" result="c"/>
+            <feComposite in="c" in2="b" operator="in" result="sh"/>
+            <feMerge><feMergeNode in="sh"/><feMergeNode in="SourceGraphic"/></feMerge>
+          </filter>
+          <filter id="glow-good-secondary" x="-40%" y="-40%" width="180%" height="180%">
+            <feGaussianBlur in="SourceAlpha" stdDeviation="5" result="b"/>
+            <feFlood flood-color="#2bc48a" flood-opacity="0.35" result="c"/>
+            <feComposite in="c" in2="b" operator="in" result="sh"/>
+            <feMerge><feMergeNode in="sh"/><feMergeNode in="SourceGraphic"/></feMerge>
+          </filter>
+        </defs>
+        <g id="dotgrid-secondary" opacity="0.55"></g>
+        <g id="vp-secondary"></g>
+      </svg>
     </div>
   </div>
 
-  <!-- ── INFO PANEL ── -->
   <div class="info">
     <div class="shdr">
       <span class="bdg b-st" id="badge">START</span>
       <span class="snum" id="snum">Step 0 / 0</span>
     </div>
-    <div class="sdesc" id="desc"></div>
-    <div class="ncard">
-      <div class="nchdr">Current node</div>
-      <div class="ncbody" id="ncb"></div>
+    <div class="compare-strip" id="compare-strip"></div>
+    <div id="exp-warning"></div>
+    <div class="teach-toggle-wrap">
+      <div class="teach-controls">
+        <span class="mode-label">Teaching Mode</span>
+        <button class="mode-pill active" data-mode="intro" type="button">Intro</button>
+        <button class="mode-pill" data-mode="intermediate" type="button">Intermediate</button>
+        <button class="mode-pill" data-mode="research" type="button">Research</button>
+        <button class="teach-toggle" id="transcript-toggle" type="button">Transcript Mode</button>
+      </div>
+      <button class="teach-toggle" id="math-toggle" type="button">Show Math</button>
     </div>
+    <div class="focus-banner" id="focus-banner"></div>
+    <div class="sdesc" id="desc"></div>
+
+    <div class="panel-card">
+      <div class="card-h">Event Timeline</div>
+      <div class="timeline" id="event-timeline"></div>
+    </div>
+
+    <div class="panel-card">
+      <div class="card-h">Strategy Comparison</div>
+      <div class="compare-dual" id="compare-dual"></div>
+    </div>
+
+    <div class="panel-card">
+      <div class="card-h">Why This Step?</div>
+      <div class="teach-text" id="why-step"></div>
+    </div>
+
+    <div class="panel-card">
+      <div class="card-h">Node Story</div>
+      <div class="learning-stack" id="node-story"></div>
+    </div>
+
+    <div class="panel-card">
+      <div class="card-h">Episode Transcript</div>
+      <div class="learning-stack" id="episode-transcript"></div>
+    </div>
+
+    <div class="panel-card">
+      <div class="card-h">What Would Another Strategy Do?</div>
+      <div class="counter-stack" id="counterfactuals"></div>
+    </div>
+
+    <div class="panel-card">
+      <div class="card-h">Rule-Specific Formula Card</div>
+      <div class="formula-stack" id="formula-card"></div>
+    </div>
+
+    <div class="panel-card">
+      <div class="card-h">Pseudocost Learning</div>
+      <div class="learning-stack" id="pseudocost-learning"></div>
+    </div>
+
+    <div class="panel-card">
+      <div class="card-h">Reliability Branching State</div>
+      <div class="learning-stack" id="reliability-state"></div>
+    </div>
+
+    <div class="panel-card">
+      <div class="card-h">Variable Fractionality View</div>
+      <div class="fractionality-stack" id="fractionality-view"></div>
+    </div>
+
+    <div class="panel-card">
+      <div class="card-h">What Changed?</div>
+      <div class="delta-list" id="delta-list"></div>
+    </div>
+
+    <div class="panel-card">
+      <div class="card-h">Primal / Dual Bound</div>
+      <div class="bound-grid" id="bound-grid"></div>
+    </div>
+
+    <div class="panel-card">
+      <div class="card-h">Search Work / Branching Cost</div>
+      <div class="learning-stack" id="work-panel"></div>
+    </div>
+
+    <div class="panel-card">
+      <div class="card-h">Frontier Leaderboard</div>
+      <div class="learning-stack" id="frontier-board"></div>
+    </div>
+
+    <div class="panel-card">
+      <div class="card-h">Search Charts</div>
+      <div class="chart-stack" id="chart-stack"></div>
+    </div>
+
+    <div class="panel-card">
+      <div class="card-h">Current Node</div>
+      <div class="grid-body" id="ncb"></div>
+    </div>
+
+    <div class="panel-card">
+      <div class="card-h">Branch Candidates</div>
+      <div class="candidate-list" id="branch-candidates"></div>
+    </div>
+
+    <div class="panel-card">
+      <div class="card-h">Rejected Alternatives</div>
+      <div class="alt-list" id="alt-list"></div>
+    </div>
+
+    <div class="panel-card" id="depth-hist-card">
+      <div class="card-h">Search Depth Distribution</div>
+      <div id="depth-hist"></div>
+    </div>
+
     <div id="pzone"></div>
+
     <div class="bbox">
       <div class="blbl">Best integer solution</div>
       <div class="bval none" id="bval">none yet</div>
       <div class="bsol" id="bsol"></div>
     </div>
+
     <div class="qbox">
       <div class="qlbl">Queue</div>
       <div class="qchips" id="qchips"></div>
     </div>
+
     <div class="legend">
-      <div class="leg"><div class="ldot" style="background:#38aadc"></div>LP solved</div>
-      <div class="leg"><div class="ldot" style="background:#e8a020"></div>Active</div>
-      <div class="leg"><div class="ldot" style="background:#00c4a0"></div>Integer</div>
-      <div class="leg"><div class="ldot" style="background:#e83a5a"></div>Pruned (inf)</div>
-      <div class="leg"><div class="ldot" style="background:#e07030"></div>Pruned (bnd)</div>
+      <div class="leg"><div class="ldot" style="background:var(--blue)"></div>LP solved</div>
+      <div class="leg"><div class="ldot" style="background:var(--accent)"></div>Active</div>
+      <div class="leg"><div class="ldot" style="background:var(--good)"></div>Integer</div>
+      <div class="leg"><div class="ldot" style="background:var(--bad)"></div>Pruned infeasible</div>
+      <div class="leg"><div class="ldot" style="background:var(--warn)"></div>Pruned bound</div>
     </div>
   </div>
 </div>
 
-<!-- ── NAV BAR ── -->
 <div class="nav">
-  <button class="btn" id="bprev" onclick="go(-1)">&#9664; Prev</button>
-  <button class="btn bplay" id="bplay" onclick="togPlay()">&#9654; Play</button>
-  <button class="btn" id="bnext" onclick="go(1)">Next &#9654;</button>
+  <button class="btn" id="bprev" onclick="go(-1)">◀ Prev</button>
+  <button class="btn bplay" id="bplay" onclick="togPlay()">▶ Play</button>
+  <button class="btn" id="bnext" onclick="go(1)">Next ▶</button>
 
   <div class="step-wrap">
     <input type="range" id="sl" min="0" value="0" oninput="seek(+this.value)">
@@ -358,47 +1139,95 @@ input[type=range]{ width:100%; accent-color:var(--amb); cursor:pointer; height:3
 
   <div class="speed-wrap">
     <span>Speed</span>
-    <input type="range" id="speed-sl" min="1" max="10" value="5"
-           oninput="setSpeed(+this.value)">
+    <input type="range" id="speed-sl" min="1" max="10" value="5" oninput="setSpeed(+this.value)">
     <span id="speed-lbl">1.0×</span>
   </div>
 
-  <button class="btn" onclick="seek(0)">&#8635; Reset</button>
+  <button class="btn" onclick="seek(0)">↻ Reset</button>
+  <span class="sctr" id="live-stats" style="margin-left:auto;font-size:.72rem;color:var(--muted)">Queue: 0 | LPs: 0 | Nodes: 0</span>
 </div>
 
 <script>
 'use strict';
-// ── DATA ─────────────────────────────────────────────────────────────────────
-const TRACE  = __TRACE__;
-const FRAMES = TRACE.frames;
-const P      = TRACE.problem;
-const NS     = 'http://www.w3.org/2000/svg';
+const TRACE = __TRACE__;
+const P = TRACE.problem;
+const CFG = TRACE.config || {};
+const RUNS = (TRACE.runs && TRACE.runs.length ? TRACE.runs : [{strategy: TRACE.strategy || CFG.strategy || 'depth_first_search', frames: TRACE.frames || [], summary: (TRACE.comparison && TRACE.comparison.runs && TRACE.comparison.runs[0] && TRACE.comparison.runs[0].summary) || {strategy: TRACE.strategy || CFG.strategy || 'depth_first_search'}}]);
+let activeRunIndex = Math.max(0, RUNS.findIndex(run => run.strategy === (TRACE.strategy || CFG.strategy)));
+if (activeRunIndex < 0) activeRunIndex = 0;
+let FRAMES = RUNS[activeRunIndex].frames;
+let START_INFO = (FRAMES[0] && FRAMES[0].info) || {};
+const NS = 'http://www.w3.org/2000/svg';
+const EPS = 1e-6;
+let showMath = false;
+let teachingMode = 'intro';
+let transcriptMode = false;
+let secondaryRunIndex = RUNS.length > 1 ? (activeRunIndex === 0 ? 1 : 0) : 0;
+if (RUNS.length <= 1) document.body.classList.add('single-run');
+const TREE_VIEWS = {
+  main: {panelId:'treepanel-main', svgId:'treesvg-main', dotId:'dotgrid-main', vpId:'vp-main', zoomId:'zpct', interactive:true},
+  secondary: {panelId:'treepanel-secondary', svgId:'treesvg-secondary', dotId:'dotgrid-secondary', vpId:'vp-secondary', interactive:false}
+};
 
-// ── STATUS CONFIG ─────────────────────────────────────────────────────────────
 const SFC = {
-  open:'#0d1e30', lp_solved:'#0e2a42', branched:'#0d2038',
-  integer:'#062a1a', pruned_inf:'#2a0812', pruned_bound:'#2a1404'
+  open:'var(--panel3)', lp_solved:'var(--blue-soft)', branched:'var(--panel3)',
+  integer:'var(--good-soft)', pruned_inf:'var(--bad-soft)', pruned_bound:'var(--warn-soft)'
 };
 const SEC = {
-  open:'#2d4a6a', lp_solved:'#38aadc', branched:'#38aadc',
-  integer:'#00c4a0', pruned_inf:'#e83a5a', pruned_bound:'#e07030'
+  open:'var(--muted)', lp_solved:'var(--blue)', branched:'var(--accent)',
+  integer:'var(--good)', pruned_inf:'var(--bad)', pruned_bound:'var(--warn)'
 };
 const SLB = {
   open:'QUEUED', lp_solved:'LP SOLVED', branched:'BRANCHED',
   integer:'INTEGER', pruned_inf:'INFEASIBLE', pruned_bound:'PRUNED'
 };
 const BADGE = {
-  start:       ['b-st','INITIALISE',   '\u{1F680}'],
-  lp_solved:   ['b-lp','LP SOLVED',    '\u{1F535}'],
-  branch:      ['b-br','BRANCHING',    '\u{1F500}'],
-  integer:     ['b-it','INTEGER',      '\u2705'],
-  prune_inf:   ['b-if','INFEASIBLE',   '\u2702'],
-  prune_bound: ['b-bd','PRUNED',       '\u2702'],
-  done:        ['b-dn','OPTIMAL',      '\u{1F3C6}'],
+  start:['b-st','INITIALISE'],
+  lp_solved:['b-lp','LP SOLVED'],
+  branch:['b-br','BRANCHING'],
+  integer:['b-it','INTEGER'],
+  prune_inf:['b-if','INFEASIBLE'],
+  prune_bound:['b-bd','PRUNED'],
+  done:['b-dn','COMPLETE']
 };
-const EPS = 1e-6;
+const STRATEGY_ALIASES = {
+  dfs:'depth_first_search',
+  bfs:'breadth_first_search',
+  best:'best_first_search',
+  best_estimate:'best_estimate_search',
+  best_plunging:'best_first_search_with_plunging',
+  interleaved_best_estimate_best:'interleaved_best_estimate_best_first_search',
+  hybrid_best_estimate_best:'hybrid_best_estimate_best_first_search'
+};
+const LABELS = {
+  strategy:{
+    depth_first_search:'Depth-First Search',
+    breadth_first_search:'Breadth-First Search',
+    best_first_search:'Best-First Search',
+    best_first_search_with_plunging:'Best-First Search with Plunging',
+    best_estimate_search:'Best Estimate Search',
+    interleaved_best_estimate_best_first_search:'Interleaved Best Estimate / Best-First Search',
+    hybrid_best_estimate_best_first_search:'Hybrid Best Estimate / Best-First Search'
+  },
+  child_selection:{
+    downwards:'Downwards Selection',
+    upwards:'Upwards Selection',
+    pseudocost:'Pseudocost Selection',
+    lp_value:'LP Value Selection',
+    root_lp_value:'Root LP Value Selection',
+    inference:'Inference Selection',
+    hybrid_inference_root_lp:'Hybrid Inference/Root LP Selection'
+  },
+  branching_rule:{
+    most_fractional:'Most Fractional',
+    pseudocost:'Pseudocost',
+    strong:'Strong Branching',
+    hybrid_strong_pseudocost:'Hybrid Strong/Pseudocost',
+    pseudocost_strong_init:'Pseudocost with Strong Init',
+    reliability:'Reliability Branching'
+  }
+};
 
-// ── SVG helpers ───────────────────────────────────────────────────────────────
 function se(tag, attrs) {
   const e = document.createElementNS(NS, tag);
   for (const [k, v] of Object.entries(attrs)) e.setAttribute(k, v);
@@ -410,12 +1239,84 @@ function st(txt, attrs, parent) {
   if (parent) parent.appendChild(t);
   return t;
 }
+function fmt(x, digits = 4) {
+  return x == null ? '—' : Number(x).toFixed(digits);
+}
+function pct(x, digits = 2) {
+  return x == null ? '—' : `${Number(x).toFixed(digits)}%`;
+}
+function isMaxSense() {
+  return (P.sense || 'max') === 'max';
+}
+function isActiveNode(nd) {
+  return !!nd && (nd.status === 'open' || nd.status === 'lp_solved');
+}
+function globalDualBound(frame) {
+  const vals = Object.values(frame.nodes || {})
+    .filter(nd => isActiveNode(nd) && nd.lp_val != null)
+    .map(nd => nd.lp_val);
+  if (!vals.length) return null;
+  return isMaxSense() ? Math.max(...vals) : Math.min(...vals);
+}
+function absoluteGap(primal, dual) {
+  if (primal == null || dual == null) return null;
+  return isMaxSense() ? dual - primal : primal - dual;
+}
+function relativeGap(primal, dual) {
+  const gap = absoluteGap(primal, dual);
+  if (gap == null) return null;
+  const scale = Math.max(Math.abs(primal), EPS);
+  return 100 * gap / scale;
+}
+function activeRun() {
+  return RUNS[activeRunIndex];
+}
+function secondaryRun() {
+  return RUNS[secondaryRunIndex] || null;
+}
+function canonicalStrategy(value) {
+  return STRATEGY_ALIASES[value] || value || 'depth_first_search';
+}
+function labelFor(group, value) {
+  if (group === 'strategy') value = canonicalStrategy(value);
+  return (LABELS[group] && LABELS[group][value]) || value || '—';
+}
 
-// ── TREE LAYOUT ───────────────────────────────────────────────────────────────
+function buildEpisodes() {
+  const episodes = [];
+  let start = 0;
+  for (let i = 1; i < FRAMES.length; i += 1) {
+    const prev = FRAMES[i - 1];
+    const currFrame = FRAMES[i];
+    if (String(prev.current_id) !== String(currFrame.current_id)) {
+      episodes.push({start, end: i - 1, current_id: prev.current_id});
+      start = i;
+    }
+  }
+  if (FRAMES.length) {
+    episodes.push({start, end: FRAMES.length - 1, current_id: FRAMES[FRAMES.length - 1].current_id});
+  }
+  return episodes;
+}
+
+function episodes() {
+  return buildEpisodes();
+}
+
+function episodeIndexForFrame(frameIndex) {
+  const eps = episodes();
+  return Math.max(0, eps.findIndex(ep => frameIndex >= ep.start && frameIndex <= ep.end));
+}
+
+function currentEpisode() {
+  const eps = episodes();
+  return eps[episodeIndexForFrame(cur)] || null;
+}
+
 function hierPos(nodes) {
-  const ids = Object.keys(nodes).map(Number).sort((a,b)=>a-b);
-  const ch  = {};
-  let root  = null;
+  const ids = Object.keys(nodes).map(Number).sort((a, b) => a - b);
+  const ch = {};
+  let root = null;
   for (const id of ids) {
     ch[id] = [];
     if (nodes[id].parent_id === null) root = id;
@@ -424,322 +1325,1802 @@ function hierPos(nodes) {
     const p = nodes[id].parent_id;
     if (p !== null && ch[p]) ch[p].push(id);
   }
-  for (const id of ids) ch[id].sort((a,b) => a-b);
+  for (const id of ids) ch[id].sort((a, b) => a - b);
 
   const pos = {};
   let leafX = 0;
   function lay(id, d) {
     const c = ch[id] || [];
-    if (!c.length) { pos[id] = {c: leafX++, r: d}; return; }
-    for (const cid of c) lay(cid, d+1);
+    if (!c.length) {
+      pos[id] = {c: leafX++, r: d};
+      return;
+    }
+    for (const cid of c) lay(cid, d + 1);
     const cols = c.map(x => pos[x].c);
-    pos[id] = {c: (Math.min(...cols)+Math.max(...cols))/2, r: d};
+    pos[id] = {c: (Math.min(...cols) + Math.max(...cols)) / 2, r: d};
   }
   if (root !== null) lay(root, 0);
   return {pos, ch, root};
 }
 
-const NW=162, NH=84, HG=52, VG=92, M=60;
-const px = c => c*(NW+HG)+NW/2+M;
-const py = r => r*(NH+VG)+NH/2+M;
+const NW = 176, NH = 90, HG = 56, VG = 94, M = 64;
+const px = c => c * (NW + HG) + NW / 2 + M;
+const py = r => r * (NH + VG) + NH / 2 + M;
 
-// ── ZOOM / PAN STATE ──────────────────────────────────────────────────────────
-let vpX=0, vpY=0, vpS=1;
-let panStart=null, panOrigin=null;
-let lastTreeW=0, lastTreeH=0;
+let vpX = 0, vpY = 0, vpS = 1;
+let panStart = null, panOrigin = null;
+let lastTreeW = 0, lastTreeH = 0;
 
-function applyVP() {
-  document.getElementById('vp').setAttribute(
-    'transform', `translate(${vpX},${vpY}) scale(${vpS})`
-  );
-  document.getElementById('zpct').textContent = Math.round(vpS*100)+'%';
+function applyVP(target = TREE_VIEWS.main) {
+  document.getElementById(target.vpId).setAttribute('transform', `translate(${vpX},${vpY}) scale(${vpS})`);
+  if (target.zoomId) {
+    document.getElementById(target.zoomId).textContent = Math.round(vpS * 100) + '%';
+  }
 }
-
-function fitTree(W, H) {
-  const panel = document.getElementById('treepanel');
+function fitTree(W, H, target = TREE_VIEWS.main) {
+  const panel = document.getElementById(target.panelId);
   const pw = panel.clientWidth, ph = panel.clientHeight;
   if (!pw || !ph || !W || !H) return;
-  const sx = (pw-40)/W, sy = (ph-40)/H;
+  const sx = (pw - 40) / W, sy = (ph - 40) / H;
   vpS = Math.min(sx, sy, 1);
-  vpX = (pw - W*vpS)/2;
-  vpY = (ph - H*vpS)/2;
-  applyVP();
+  vpX = (pw - W * vpS) / 2;
+  vpY = (ph - H * vpS) / 2;
+  applyVP(target);
 }
-
+function css(name) {
+  return getComputedStyle(document.body).getPropertyValue(name).trim();
+}
 function zoomBy(delta, cx, cy) {
-  const panel = document.getElementById('treepanel');
+  const panel = document.getElementById(TREE_VIEWS.main.panelId);
   const pw = panel.clientWidth, ph = panel.clientHeight;
-  const ocx = cx ?? pw/2, ocy = cy ?? ph/2;
+  const ocx = cx ?? pw / 2, ocy = cy ?? ph / 2;
   const newS = Math.max(0.15, Math.min(4, vpS * delta));
-  vpX = ocx - (ocx - vpX)*(newS/vpS);
-  vpY = ocy - (ocy - vpY)*(newS/vpS);
+  vpX = ocx - (ocx - vpX) * (newS / vpS);
+  vpY = ocy - (ocy - vpY) * (newS / vpS);
   vpS = newS;
-  applyVP();
+  applyVP(TREE_VIEWS.main);
 }
 
-// ── RENDER TREE ───────────────────────────────────────────────────────────────
-function renderTree(frame) {
+function renderTree(frame, target = TREE_VIEWS.main) {
   const nodes = frame.nodes;
-  const ids   = Object.keys(nodes).map(Number).sort((a,b)=>a-b);
+  const ids = Object.keys(nodes).map(Number).sort((a, b) => a - b);
   if (!ids.length) return;
 
-  const {pos, ch} = hierPos(nodes);
-  const maxC = Math.max(...Object.values(pos).map(p=>p.c), 0);
-  const maxR = Math.max(...Object.values(pos).map(p=>p.r), 0);
-  const W = (maxC+1)*(NW+HG)+2*M;
-  const H = (maxR+1)*(NH+VG)+2*M;
+  const {pos} = hierPos(nodes);
+  const maxC = Math.max(...Object.values(pos).map(p => p.c), 0);
+  const maxR = Math.max(...Object.values(pos).map(p => p.r), 0);
+  const W = (maxC + 1) * (NW + HG) + 2 * M;
+  const H = (maxR + 1) * (NH + VG) + 2 * M;
 
-  // Update SVG size
-  const svg = document.getElementById('treesvg');
-  svg.setAttribute('width',  svg.clientWidth  || 800);
+  const svg = document.getElementById(target.svgId);
+  svg.setAttribute('width', svg.clientWidth || 800);
   svg.setAttribute('height', svg.clientHeight || 500);
 
-  // Dot grid (fixed, not part of VP)
-  const dg = document.getElementById('dotgrid');
+  const dg = document.getElementById(target.dotId);
   dg.innerHTML = '';
   const pw = svg.clientWidth || 800, ph = svg.clientHeight || 500;
-  for (let gx=20; gx<pw; gx+=44)
-    for (let gy=20; gy<ph; gy+=44)
-      dg.appendChild(se('circle',{cx:gx,cy:gy,r:'1',fill:'#1a2840'}));
-
-  // Fit on first render or if tree dimensions changed
-  if (Math.abs(W-lastTreeW)>10 || Math.abs(H-lastTreeH)>10) {
-    lastTreeW = W; lastTreeH = H;
-    fitTree(W, H);
+  const dotColor = getComputedStyle(document.body).getPropertyValue('--tree-dot').trim();
+  for (let gx = 20; gx < pw; gx += 44) {
+    for (let gy = 20; gy < ph; gy += 44) {
+      dg.appendChild(se('circle', {cx: gx, cy: gy, r: '1', fill: dotColor}));
+    }
   }
 
-  const vp = document.getElementById('vp');
+  if (target.interactive && (Math.abs(W - lastTreeW) > 10 || Math.abs(H - lastTreeH) > 10)) {
+    lastTreeW = W;
+    lastTreeH = H;
+    fitTree(W, H, target);
+  }
+  if (!target.interactive) {
+    const pw2 = svg.clientWidth || 800;
+    const ph2 = svg.clientHeight || 500;
+    const scale = Math.min((pw2 - 30) / W, (ph2 - 30) / H, 1);
+    const tx = (pw2 - W * scale) / 2;
+    const ty = (ph2 - H * scale) / 2;
+    document.getElementById(target.vpId).setAttribute('transform', `translate(${tx},${ty}) scale(${scale})`);
+  }
+
+  const vp = document.getElementById(target.vpId);
   vp.innerHTML = '';
 
-  // ── Edges ──────────────────────────────────────────────────────────────────
   for (const id of ids) {
     const nd = nodes[id];
     if (nd.parent_id === null) continue;
     const pp = pos[nd.parent_id], cp = pos[id];
     if (!pp || !cp) continue;
-
-    const x1=px(pp.c), y1=py(pp.r)+NH/2+2;
-    const x2=px(cp.c), y2=py(cp.r)-NH/2-2;
-    const my=(y1+y2)/2;
-
-    vp.appendChild(se('path',{
-      d:`M${x1} ${y1} C${x1} ${my} ${x2} ${my} ${x2} ${y2}`,
-      fill:'none', stroke:'#1a3a50', 'stroke-width':'1.8'
+    const x1 = px(pp.c), y1 = py(pp.r) + NH / 2 + 2;
+    const x2 = px(cp.c), y2 = py(cp.r) - NH / 2 - 2;
+    const my = (y1 + y2) / 2;
+    vp.appendChild(se('path', {
+      d: `M${x1} ${y1} C${x1} ${my} ${x2} ${my} ${x2} ${y2}`,
+      fill: 'none',
+      stroke: getComputedStyle(document.body).getPropertyValue('--border').trim(),
+      'stroke-width': '1.9'
     }));
-
     if (nd.branch_desc) {
-      const mx=(x1+x2)/2;
-      const lw=nd.branch_desc.length*5.6+12;
-      vp.appendChild(se('rect',{x:mx-lw/2,y:my-10,width:lw,height:17,rx:'3',
-        fill:'#080c12',stroke:'#1a2840','stroke-width':'1'}));
-      st(nd.branch_desc,{x:mx,y:my+4,'text-anchor':'middle','font-size':'9.5',
-        'font-family':'IBM Plex Mono,monospace',fill:'#3a6080'},vp);
+      const mx = (x1 + x2) / 2;
+      const lw = nd.branch_desc.length * 6 + 16;
+      vp.appendChild(se('rect', {
+        x: mx - lw / 2, y: my - 10, width: lw, height: 18, rx: '6',
+        fill: getComputedStyle(document.body).getPropertyValue('--panel').trim(),
+        stroke: getComputedStyle(document.body).getPropertyValue('--border').trim(),
+        'stroke-width': '1'
+      }));
+      st(nd.branch_desc, {
+        x: mx, y: my + 4, 'text-anchor': 'middle', 'font-size': '9.5',
+        'font-family': 'IBM Plex Mono,monospace',
+        fill: getComputedStyle(document.body).getPropertyValue('--muted').trim()
+      }, vp);
     }
   }
 
-  // ── Nodes ──────────────────────────────────────────────────────────────────
   for (const id of ids) {
     const nd = nodes[id];
-    const p  = pos[id];
+    const p = pos[id];
     if (!p) continue;
-
-    const cx=px(p.c), cy=py(p.r), nx=cx-NW/2, ny=cy-NH/2;
+    const cx = px(p.c), cy = py(p.r), nx = cx - NW / 2, ny = cy - NH / 2;
     const fc = SFC[nd.status] || SFC.open;
     const ec = SEC[nd.status] || SEC.open;
     const isCur = String(id) === String(frame.current_id);
 
-    const g = se('g', {
-      'data-nid': id,
-      style: 'cursor:pointer',
-    });
-    g.addEventListener('click', e => { e.stopPropagation(); showTooltip(id, e); });
+    const g = se('g', {'data-nid': id, style: target.interactive ? 'cursor:pointer' : 'cursor:default'});
+    if (target.interactive) {
+      g.addEventListener('click', e => { e.stopPropagation(); showTooltip(id, e); });
+    }
 
-    // glow ring for current / integer
     if (isCur || nd.status === 'integer') {
-      const gc = nd.status === 'integer' ? 'glow-tel' : 'glow-amb';
-      g.appendChild(se('rect',{x:nx-6,y:ny-6,width:NW+12,height:NH+12,rx:'9',
-        fill:'none', stroke:ec, 'stroke-width':'1.5', 'stroke-opacity':'0.28',
-        filter:`url(#${gc})`}));
+      const gc = nd.status === 'integer'
+        ? (target.interactive ? 'glow-good' : 'glow-good-secondary')
+        : (target.interactive ? 'glow-amb' : 'glow-amb-secondary');
+      g.appendChild(se('rect', {
+        x: nx - 7, y: ny - 7, width: NW + 14, height: NH + 14, rx: '14',
+        fill: 'none', stroke: ec, 'stroke-width': '1.5', 'stroke-opacity': '0.24',
+        filter: `url(#${gc})`
+      }));
     }
 
-    // main box
-    g.appendChild(se('rect',{x:nx,y:ny,width:NW,height:NH,rx:'5',
-      fill:fc, stroke:ec, 'stroke-width':isCur?'2.8':'1.5'}));
+    g.appendChild(se('rect', {
+      x: nx, y: ny, width: NW, height: NH, rx: '12',
+      fill: fc, stroke: ec, 'stroke-width': isCur ? '2.8' : '1.6'
+    }));
+    g.appendChild(se('rect', {
+      x: nx, y: ny, width: NW, height: 24, rx: '12',
+      fill: css('--node-sheen')
+    }));
+    g.appendChild(se('rect', {x: nx, y: ny + 18, width: NW, height: 6, fill: css('--node-sheen')}));
 
-    // header band
-    const hc = {integer:'rgba(0,196,160,0.12)',pruned_inf:'rgba(232,58,90,0.12)',
-                 pruned_bound:'rgba(224,112,48,0.12)'}[nd.status]||'rgba(255,255,255,0.03)';
-    g.appendChild(se('rect',{x:nx,y:ny,width:NW,height:22,rx:'4',fill:hc}));
-    g.appendChild(se('rect',{x:nx,y:ny+17,width:NW,height:5,fill:hc}));
+    st('P' + id, {
+      x: cx, y: ny + 15, 'text-anchor': 'middle', 'font-size': '9.4',
+      'font-weight': '600', 'font-family': 'IBM Plex Mono,monospace', fill: ec
+    }, g);
+    st(SLB[nd.status] || nd.status, {
+      x: cx, y: ny + 30, 'text-anchor': 'middle', 'font-size': '7.8',
+      'font-family': 'IBM Plex Mono,monospace', fill: ec, opacity: '0.84'
+    }, g);
 
-    // node ID
-    st('P'+id, {x:cx,y:ny+14,'text-anchor':'middle','font-size':'9',
-      'font-weight':'600','font-family':'IBM Plex Mono,monospace',fill:ec}, g);
-
-    // status label
-    st(SLB[nd.status]||nd.status, {x:cx,y:ny+27,'text-anchor':'middle',
-      'font-size':'7.5','font-family':'IBM Plex Mono,monospace',fill:ec,opacity:'0.82'}, g);
-
-    // LP value
     if (nd.lp_val != null) {
-      st('z = '+nd.lp_val.toFixed(4), {x:cx,y:ny+46,'text-anchor':'middle',
-        'font-size':'11','font-family':'IBM Plex Mono,monospace',fill:'#e8a020'}, g);
+      st('z = ' + nd.lp_val.toFixed(4), {
+        x: cx, y: ny + 50, 'text-anchor': 'middle', 'font-size': '11.5',
+        'font-family': 'IBM Plex Mono,monospace', fill: getComputedStyle(document.body).getPropertyValue('--accent').trim()
+      }, g);
     } else if (nd.status === 'pruned_inf') {
-      st('INFEASIBLE', {x:cx,y:ny+46,'text-anchor':'middle','font-size':'10',
-        'font-family':'IBM Plex Mono,monospace',fill:'#e83a5a'}, g);
+      st('INFEASIBLE', {
+        x: cx, y: ny + 50, 'text-anchor': 'middle', 'font-size': '10.4',
+        'font-family': 'IBM Plex Mono,monospace', fill: getComputedStyle(document.body).getPropertyValue('--bad').trim()
+      }, g);
     }
 
-    // solution summary
     if (nd.lp_sol && Object.keys(nd.lp_sol).length) {
-      const vn   = P.var_names;
-      const parts= vn.slice(0,4).map(v=>v+'='+nd.lp_sol[v].toFixed(2));
-      st(parts.join('  ')+(vn.length>4?'\u2026':''), {x:cx,y:ny+62,'text-anchor':'middle',
-        'font-size':'9','font-family':'IBM Plex Mono,monospace',fill:'#4a7a9a'}, g);
+      const vn = P.var_names;
+      const parts = vn.slice(0, 4).map(v => v + '=' + nd.lp_sol[v].toFixed(2));
+      st(parts.join('  ') + (vn.length > 4 ? '…' : ''), {
+        x: cx, y: ny + 68, 'text-anchor': 'middle', 'font-size': '9',
+        'font-family': 'IBM Plex Mono,monospace',
+        fill: getComputedStyle(document.body).getPropertyValue('--muted').trim()
+      }, g);
     }
 
-    // prune X overlay
     if (nd.status === 'pruned_inf' || nd.status === 'pruned_bound') {
-      const xc = nd.status==='pruned_inf' ? '#e83a5a' : '#e07030';
-      const h  = NW*0.27;
-      g.appendChild(se('line',{x1:cx-h,y1:cy-12,x2:cx+h,y2:cy+10,
-        stroke:xc,'stroke-width':'2.5','stroke-opacity':'0.45','stroke-linecap':'round'}));
-      g.appendChild(se('line',{x1:cx+h,y1:cy-12,x2:cx-h,y2:cy+10,
-        stroke:xc,'stroke-width':'2.5','stroke-opacity':'0.45','stroke-linecap':'round'}));
+      const xc = nd.status === 'pruned_inf'
+        ? getComputedStyle(document.body).getPropertyValue('--bad').trim()
+        : getComputedStyle(document.body).getPropertyValue('--warn').trim();
+      const h = NW * 0.27;
+      g.appendChild(se('line', {
+        x1: cx - h, y1: cy - 12, x2: cx + h, y2: cy + 10,
+        stroke: xc, 'stroke-width': '2.5', 'stroke-opacity': '0.38', 'stroke-linecap': 'round'
+      }));
+      g.appendChild(se('line', {
+        x1: cx + h, y1: cy - 12, x2: cx - h, y2: cy + 10,
+        stroke: xc, 'stroke-width': '2.5', 'stroke-opacity': '0.38', 'stroke-linecap': 'round'
+      }));
     }
 
-    // integer star
     if (nd.status === 'integer') {
-      st('\u2605', {x:cx,y:ny+78,'text-anchor':'middle','font-size':'11',
-        'font-family':'IBM Plex Mono,monospace',fill:'#00c4a0','font-weight':'bold'}, g);
+      st('★', {
+        x: cx, y: ny + 83, 'text-anchor': 'middle', 'font-size': '11',
+        'font-family': 'IBM Plex Mono,monospace',
+        fill: getComputedStyle(document.body).getPropertyValue('--good').trim(), 'font-weight': 'bold'
+      }, g);
     }
 
     vp.appendChild(g);
   }
 }
 
-// ── TOOLTIP / NODE CLICK ──────────────────────────────────────────────────────
-// For each node id, find the last frame index where it was current
 function lastFrameForNode(nid) {
   let best = -1;
-  for (let i=0; i<FRAMES.length; i++) {
+  for (let i = 0; i < FRAMES.length; i++) {
     if (String(FRAMES[i].current_id) === String(nid)) best = i;
   }
   if (best < 0) {
-    // fallback: last frame where node appears
-    for (let i=FRAMES.length-1; i>=0; i--) {
-      if (FRAMES[i].nodes[String(nid)]) { best = i; break; }
+    for (let i = FRAMES.length - 1; i >= 0; i--) {
+      if (FRAMES[i].nodes[String(nid)]) {
+        best = i;
+        break;
+      }
     }
   }
   return Math.max(best, 0);
 }
 
 let tooltipNodeId = null;
-
 function showTooltip(nid, evt) {
   tooltipNodeId = nid;
   const frameIdx = lastFrameForNode(nid);
-  const nd       = FRAMES[frameIdx].nodes[String(nid)];
+  const nd = FRAMES[frameIdx].nodes[String(nid)];
   if (!nd) return;
 
-  const tt   = document.getElementById('tooltip');
-  const hdr  = document.getElementById('tt-hdr');
+  const tt = document.getElementById('tooltip');
+  const hdr = document.getElementById('tt-hdr');
   const body = document.getElementById('tt-body');
   const jump = document.getElementById('tt-jump');
-
-  // header colour
-  const ec = SEC[nd.status] || '#4a6580';
+  const ec = SEC[nd.status] || 'var(--muted)';
   hdr.style.color = ec;
-  hdr.style.borderBottom = `1px solid ${ec}40`;
-  hdr.textContent = 'P'+nid+'  \u00B7  '+( SLB[nd.status] || nd.status );
+  hdr.textContent = 'P' + nid + ' · ' + (SLB[nd.status] || nd.status);
 
-  // body
   const vnames = P.var_names;
   let html = '';
-
-  if (nd.depth != null)
-    html += `<span class="tt-k">Depth</span><span class="tt-v">${nd.depth}</span>`;
-  if (nd.lp_val != null)
-    html += `<span class="tt-k">LP bound</span><span class="tt-z">${nd.lp_val.toFixed(6)}</span>`;
+  html += `<span class="tt-k">Depth</span><span class="tt-v">${nd.depth}</span>`;
+  if (nd.lp_val != null) html += `<span class="tt-k">LP bound</span><span class="tt-z">${nd.lp_val.toFixed(6)}</span>`;
 
   if (nd.lp_sol && Object.keys(nd.lp_sol).length) {
     const iv = new Set(P.integer_vars || []);
-    const rows = vnames.map(v => {
-      const val  = nd.lp_sol[v] || 0;
+    html += `<span class="tt-full" style="border-top:1px solid var(--border);margin-top:4px;padding-top:6px;color:var(--muted2);font-size:.62rem">solution</span>`;
+    html += vnames.map(v => {
+      const val = nd.lp_sol[v] || 0;
       const frac = iv.has(v) && Math.abs(val - Math.round(val)) > EPS;
-      const col  = frac ? 'var(--red)' : iv.has(v) ? 'var(--tel)' : '#7aaac0';
-      return `<span class="tt-k">${v}</span>`
-           + `<span class="tt-v" style="color:${col}">${val.toFixed(4)}</span>`;
+      const color = frac ? 'var(--bad)' : iv.has(v) ? 'var(--good)' : 'var(--blue)';
+      return `<span class="tt-k">${v}</span><span class="tt-v" style="color:${color}">${val.toFixed(4)}</span>`;
     }).join('');
-    html += rows;
   }
 
-  // variable bounds
-  const vb = P.var_bounds || {};
-  const bndRows = vnames.map(v => {
-    const lo = (nd.lb && nd.lb[v] != null) ? nd.lb[v] : 0;
-    const hi = (nd.ub && nd.ub[v] != null) ? nd.ub[v] : '\u221e';
-    return `<span class="tt-k">${v}</span><span class="tt-v" style="color:var(--dim)">[${lo}, ${hi}]</span>`;
+  html += `<span class="tt-full" style="border-top:1px solid var(--border);margin-top:4px;padding-top:6px;color:var(--muted2);font-size:.62rem">bounds</span>`;
+  html += vnames.map(v => {
+    const lo = nd.lb && nd.lb[v] != null ? nd.lb[v] : 0;
+    const hi = nd.ub && nd.ub[v] != null ? nd.ub[v] : '∞';
+    return `<span class="tt-k">${v}</span><span class="tt-v">[${lo}, ${hi}]</span>`;
   }).join('');
 
-  html += `<span class="tt-full" style="border-top:1px solid var(--bdr);margin-top:4px;padding-top:4px;color:var(--dim);font-size:.62rem">bounds</span>`;
-  html += bndRows;
-
-  if (nd.prune_reason)
-    html += `<span class="tt-k">Pruned</span><span class="tt-v" style="color:var(--red)">${nd.prune_reason}</span>`;
+  if (nd.prune_reason) html += `<span class="tt-k">Pruned</span><span class="tt-v" style="color:var(--bad)">${nd.prune_reason}</span>`;
+  if (nd.status === 'pruned_bound') {
+    const pf = FRAMES[frameIdx];
+    const incumbentAtPrune = pf && pf.best_val != null ? pf.best_val : null;
+    const lpAtPrune = nd.lp_val;
+    if (incumbentAtPrune != null && lpAtPrune != null) {
+      html += `<span class="tt-full" style="border-top:1px solid var(--border);margin-top:4px;padding-top:6px;font-size:.65rem;color:var(--muted2)">Why pruned?</span>`;
+      html += `<span class="tt-k" style="font-size:.65rem">Node LP</span><span class="tt-v" style="color:var(--accent)">${fmt(lpAtPrune, 4)}</span>`;
+      html += `<span class="tt-k" style="font-size:.65rem">Incumbent</span><span class="tt-v" style="color:var(--good)">${fmt(incumbentAtPrune, 4)}</span>`;
+      html += `<span class="tt-k" style="font-size:.65rem">Gap</span><span class="tt-v" style="color:var(--warn)">${fmt(Math.abs(incumbentAtPrune - lpAtPrune), 4)}</span>`;
+      html += `<span class="tt-full" style="font-size:.64rem;color:var(--muted);line-height:1.5">The LP bound (${fmt(lpAtPrune, 4)}) is ≤ incumbent (${fmt(incumbentAtPrune, 4)}), so no integer solution in this subtree can improve the current best.</span>`;
+    }
+  }
+  if (nd.status === 'pruned_inf') {
+    html += `<span class="tt-full" style="border-top:1px solid var(--border);margin-top:4px;padding-top:6px;font-size:.65rem;color:var(--muted2)">Why pruned?</span>`;
+    html += `<span class="tt-full" style="font-size:.64rem;color:var(--muted);line-height:1.5">The LP relaxation has no feasible solution under the variable bounds imposed by the path from the root to this node. No integer solution exists here.</span>`;
+  }
 
   body.innerHTML = html;
-
-  // jump button
-  jump.textContent = `Jump to step ${FRAMES[frameIdx].step} \u2192`;
+  const jumpLabel = nd.status === 'pruned_bound' ? `Jump to pruning step →` : nd.status === 'pruned_inf' ? `Jump to infeasibility step →` : `Jump to step ${FRAMES[frameIdx].step} →`;
+  jump.textContent = jumpLabel;
   jump.onclick = () => { hideTooltip(); seek(frameIdx); };
 
-  // position tooltip near click, staying within viewport
-  const panel  = document.getElementById('treepanel');
-  const pr     = panel.getBoundingClientRect();
-  let   tx     = evt.clientX - pr.left + 16;
-  let   ty     = evt.clientY - pr.top  - 20;
-
-  tt.style.left = '0'; tt.style.top = '0';
+  const panel = document.getElementById('treepanel-main');
+  const pr = panel.getBoundingClientRect();
+  let tx = evt.clientX - pr.left + 16;
+  let ty = evt.clientY - pr.top - 20;
+  tt.style.left = '0';
+  tt.style.top = '0';
   tt.classList.add('show');
-
   const tw = tt.offsetWidth, th = tt.offsetHeight;
-  if (tx + tw > pr.width  - 10) tx = evt.clientX - pr.left - tw - 16;
+  if (tx + tw > pr.width - 10) tx = evt.clientX - pr.left - tw - 16;
   if (ty + th > pr.height - 10) ty = pr.height - th - 10;
-  tx = Math.max(6, tx); ty = Math.max(6, ty);
-
-  tt.style.left = tx+'px';
-  tt.style.top  = ty+'px';
+  tx = Math.max(6, tx);
+  ty = Math.max(6, ty);
+  tt.style.left = tx + 'px';
+  tt.style.top = ty + 'px';
 }
-
 function hideTooltip() {
   document.getElementById('tooltip').classList.remove('show');
   tooltipNodeId = null;
 }
-
 document.getElementById('tt-close').addEventListener('click', hideTooltip);
-document.getElementById('treepanel').addEventListener('click', e => {
+document.getElementById('treepanel-main').addEventListener('click', e => {
   if (e.target.closest('[data-nid]')) return;
   hideTooltip();
 });
 
-// ── ZOOM/PAN EVENTS ───────────────────────────────────────────────────────────
-const panel = document.getElementById('treepanel');
+function buildDesc(frame) {
+  const ev = frame.event;
+  const info = frame.info || {};
+  const vnames = P.var_names;
+  const iv = new Set(P.integer_vars || []);
 
-// wheel zoom
+  if (ev === 'start') {
+    if (teachingMode === 'intro') {
+      return `We start at the root node. The first task is to solve the LP relaxation and learn whether the root is already integer-feasible or needs branching.`;
+    }
+    return `Root <b>P1</b> is queued.<br>Search uses <b style="color:var(--accent)">${labelFor('strategy', info.strategy)}</b> with <b style="color:var(--accent)">${labelFor('branching_rule', info.branching_rule)}</b> and <b style="color:var(--accent)">${labelFor('child_selection', info.child_selection)}</b>.`;
+  }
+  if (ev === 'lp_solved') {
+    if (teachingMode === 'intro') {
+      const fracCount = (info.frac_vars || []).length;
+      if (fracCount === 0) {
+        return `The LP relaxation of this node is solved. All integer variables are already at integer values — <b>no branching needed</b>. This node is integer-feasible and its objective value is a valid candidate solution.`;
+      }
+      return `The LP relaxation of this node is solved. It leaves <b>${fracCount}</b> fractional integer variable${fracCount === 1 ? '' : 's'}, so the solver still needs to branch before it can claim an integer solution.`;
+    }
+    const rows = vnames.map(v => {
+      const val = (info.lp_sol || {})[v] || 0;
+      const isInt = iv.has(v);
+      const frac = isInt && Math.abs(val - Math.round(val)) > EPS;
+      const ok = frac ? '<span style="color:var(--bad)">fractional</span>' : (isInt ? '<span style="color:var(--good)">integer</span>' : '<span style="color:var(--muted)">continuous</span>');
+      const vc = frac ? 'var(--bad)' : isInt ? 'var(--good)' : 'var(--blue)';
+      return `<tr><td style="padding:2px 6px 2px 0"><b>${v}</b></td><td style="padding:2px 6px;color:${vc}">${val.toFixed(4)}</td><td style="padding:2px 0;color:var(--muted)">${ok}</td></tr>`;
+    }).join('');
+    return `<table>${rows}</table><div style="margin-top:8px;color:var(--muted)">LP bound <b style="color:var(--accent)">${fmt(info.lp_val, 6)}</b></div>`;
+  }
+  if (ev === 'branch') {
+    const cands = info.candidate_details || (info.candidates || []).map((v, idx) => ({
+      rank: idx + 1,
+      var: v,
+      value: frame.nodes[String(frame.current_id)]?.lp_sol?.[v],
+      detail: 'Ordered from the branching rule output.',
+      score: null,
+      score_label: ''
+    }));
+    const ordered = cands.map(c => `#${c.rank} ${c.var}=${c.value == null ? '?' : fmt(c.value, 3)}`).join(' · ');
+    const groups = info.branch_groups || [];
+    if (groups.length > 1) {
+      const summary = groups.map(group => {
+        const child = group.child_selection || {};
+        return `${group.var}=${fmt(group.value, 3)} → P${group.first_child_id} then P${group.second_child_id}`;
+      }).join('<br>');
+      return `Experimental multi-branch step from <b>P${frame.current_id}</b>.<br>Top <b>${groups.length}</b> branching candidates were expanded from the same parent under <b>${labelFor('branching_rule', info.branching_rule)}</b>.<br><span style="color:var(--muted)">Ranking: ${ordered || 'no candidates'}</span><br><span style="color:var(--muted)">${summary}</span>`;
+    }
+    const child = info.child_selection || {};
+    const firstLabel = child.preferred === 'down' ? `P${info.left_id} first` : `P${info.right_id} first`;
+    if (teachingMode === 'intro') {
+      return `The solver branches on <b>${info.bvar}</b> because it looks like the most informative split under the active branching rule. It will inspect <b>${firstLabel}</b> according to the child-ordering policy.`;
+    }
+    return `Branch on <b style="color:var(--accent)">${info.bvar}</b> = ${fmt(info.bval, 4)}.<br>Ordered by <b>${labelFor('branching_rule', info.branching_rule)}</b>: <span style="color:var(--muted)">${ordered || 'no candidates'}</span><br><span style="color:var(--muted)">Child selection: <b>${labelFor('child_selection', child.rule)}</b> → ${firstLabel}</span>`;
+  }
+  if (ev === 'integer') {
+    if (teachingMode === 'intro') {
+      return `This node is already integer-feasible, so it becomes a real candidate solution. ${info.is_new_best ? '<b style="color:var(--good)">It improves the incumbent.</b>' : 'It does not improve the current incumbent.'}`;
+    }
+    const vals = vnames.map(v => `${v}=<b style="color:var(--good)">${Math.round((info.lp_sol || {})[v] || 0)}</b>`).join('  ');
+    return `Integer feasible node with <b style="color:var(--good)">z=${fmt(info.lp_val, 6)}</b>.<br>${vals}<br>${info.is_new_best ? '<b style="color:var(--good)">New incumbent.</b>' : '<span style="color:var(--muted)">Incumbent unchanged.</span>'}`;
+  }
+  if (ev === 'prune_inf') {
+    if (teachingMode === 'intro') {
+      return `The LP relaxation of this node has <b>no feasible solution</b> given the current variable bounds. This means no integer solution can exist anywhere in this subtree — so the entire branch is eliminated without further work.`;
+    }
+    if (teachingMode === 'intermediate') {
+      return `LP relaxation is <b>infeasible</b> under the current bounds. The branching decisions leading to this node created contradictory constraints that admit no feasible LP point, so the subtree is fathomed immediately.`;
+    }
+    return `LP relaxation is <b>infeasible</b> under the current bounds.<br><span style="color:var(--muted)">This entire subtree is discarded (fathomed by infeasibility).</span>`;
+  }
+  if (ev === 'prune_bound') {
+    if (teachingMode === 'intro') {
+      const gap = info.best_val != null && info.lp_val != null ? Math.abs(info.best_val - info.lp_val).toFixed(4) : null;
+      return `The LP relaxation gives an optimistic bound of <b style="color:var(--accent)">${fmt(info.lp_val, 4)}</b>, but we already have an integer solution worth <b style="color:var(--good)">${fmt(info.best_val, 4)}</b>. Since the LP cannot possibly do better${gap ? ` (gap: ${gap})` : ''}, this entire subtree is eliminated — this is the core power of branch-and-bound.`;
+    }
+    if (teachingMode === 'intermediate') {
+      return `LP bound <b style="color:var(--accent)">${fmt(info.lp_val, 4)}</b> does not beat the incumbent <b style="color:var(--good)">${fmt(info.best_val, 4)}</b>. Since LP relaxations are always optimistic (they give an upper bound for max), no integer child can improve on the LP value, so the entire subtree is safely pruned.`;
+    }
+    return `LP bound <b style="color:var(--accent)">${fmt(info.lp_val, 4)}</b> cannot beat incumbent <b style="color:var(--good)">${fmt(info.best_val, 4)}</b>.<br><span style="color:var(--muted)">This subtree is discarded by bound (fathomed by bound).</span>`;
+  }
+  if (ev === 'done') {
+    if (info.best_val != null) {
+      const vals = vnames.map(v => `${v}=<b style="color:var(--good)">${info.best_sol[v]}</b>`).join('  ');
+      return `<b style="color:var(--good)">Optimal solution proven.</b><br>z*=<b style="color:var(--good)">${info.best_val}</b> · ${vals}<br><span style="color:var(--muted)">${info.total_nodes} nodes explored</span>`;
+    }
+    return `<span style="color:var(--bad)">No feasible integer solution found.</span>`;
+  }
+  return '';
+}
+
+function buildMath(frame) {
+  const info = frame.info || {};
+  if (!showMath || teachingMode === 'intro') return '';
+  if (frame.event === 'lp_solved') {
+    return `<div class="math-box">Fractionality for an integer variable uses <code>phi(x_j)=min(x_j-floor(x_j), ceil(x_j)-x_j)</code>. The LP bound shown here is the current dual bound of the node.</div>`;
+  }
+  if (frame.event === 'branch') {
+    const child = info.child_selection || {};
+    const childLine = child.rule === 'pseudocost'
+      ? `<code>min(Psi_j^- f_j^-, Psi_j^+ f_j^+)</code> guides the first child.`
+      : child.rule === 'lp_value'
+      ? `<code>f_j^- <= 1/2 ? down : up</code>.`
+      : child.rule === 'root_lp_value'
+      ? `<code>x_j <= x_j^R ? down : up</code>.`
+      : child.rule === 'inference'
+      ? `<code>Phi_j^- >= Phi_j^+ ? down : up</code>.`
+      : child.rule === 'hybrid_inference_root_lp'
+      ? `<code>(Phi_j^-+eps)(x_j^R-x_j+1) >= (Phi_j^++eps)(x_j-x_j^R+1)</code>.`
+      : `This child rule uses a directional heuristic.`;
+    const branchLine = info.branching_rule === 'most_fractional'
+      ? `<code>argmax_j min(f_j^-, f_j^+)</code>.`
+      : info.branching_rule === 'pseudocost'
+      ? `Variables are ranked using learned directional pseudocosts <code>Psi_j^-, Psi_j^+</code>.`
+      : info.branching_rule === 'strong'
+      ? `Strong branching probes both children and scores the observed LP deterioration.`
+      : info.branching_rule === 'reliability'
+      ? `Reliability branching probes strongly until enough pseudocost samples exist.`
+      : `This branching rule combines probing and learned estimates.`;
+    return `<div class="math-box">${branchLine}<br>${childLine}</div>`;
+  }
+  if (frame.event === 'prune_bound') {
+    return `<div class="math-box">Bound pruning checks <code>z_LP <= z^*</code> for maximization. If true, the subtree cannot improve the incumbent.</div>`;
+  }
+  if (frame.event === 'integer') {
+    return `<div class="math-box">At an integer node, the LP solution already satisfies the integrality constraints, so the primal solution value equals the node LP value.</div>`;
+  }
+  return '';
+}
+
+function fractionalityOfNode(nd) {
+  if (!nd || !nd.lp_sol || !P.integer_vars) return 0;
+  return (P.integer_vars || []).reduce((sum, v) => {
+    const val = nd.lp_sol[v];
+    if (val == null) return sum;
+    return sum + Math.min(val - Math.floor(val), Math.ceil(val) - val);
+  }, 0);
+}
+
+function selectionMetric(nd, strategy) {
+  strategy = canonicalStrategy(strategy);
+  if (!nd || nd.lp_val == null) return -Infinity;
+  if (strategy === 'best_first_search' || strategy === 'best_first_search_with_plunging') return nd.lp_val;
+  if (strategy === 'best_estimate_search') return nd.lp_val - fractionalityOfNode(nd);
+  if (strategy === 'interleaved_best_estimate_best_first_search') return nd.lp_val - fractionalityOfNode(nd);
+  if (strategy === 'hybrid_best_estimate_best_first_search') return 0.1 * (nd.lp_val - fractionalityOfNode(nd)) + 0.9 * nd.lp_val;
+  return -nd.depth;
+}
+
+function selectionLabel(metric, strategy) {
+  strategy = canonicalStrategy(strategy);
+  if (strategy === 'best_first_search' || strategy === 'best_first_search_with_plunging') return `LP ${fmt(metric, 4)}`;
+  if (strategy === 'best_estimate_search' || strategy === 'interleaved_best_estimate_best_first_search' || strategy === 'hybrid_best_estimate_best_first_search') return `score ${fmt(metric, 4)}`;
+  return `priority ${fmt(metric, 4)}`;
+}
+
+function fractionalityRows(frame) {
+  const nd = frame.current_id != null ? frame.nodes[String(frame.current_id)] : null;
+  if (!nd || !nd.lp_sol) return [];
+  return (P.integer_vars || []).map(v => {
+    const value = nd.lp_sol[v];
+    if (value == null) return null;
+    const down = value - Math.floor(value);
+    const up = Math.ceil(value) - value;
+    const frac = Math.min(down, up);
+    return {var:v, value, down, up, frac};
+  }).filter(Boolean).sort((a, b) => b.frac - a.frac || a.var.localeCompare(b.var));
+}
+
+function renderWhyStep(frame) {
+  const strategy = activeRun().strategy || START_INFO.strategy;
+  const info = frame.info || {};
+  let html = '';
+  if (frame.event === 'start') {
+    html = teachingMode === 'research'
+      ? `We begin at the <b>root node</b>. No branching decision has been made yet, so the next educational focus is the first LP relaxation and its effect on dual information.`
+      : `We begin at the <b>root node</b>. No branching decision has been made yet, so the next educational focus is the first LP relaxation.`;
+  } else if (frame.event === 'lp_solved') {
+    const fracCount = (info.frac_vars || []).length;
+    html = teachingMode === 'intro'
+      ? `This node was chosen next by <b>${labelFor('strategy', strategy)}</b>. The important learning point is that the LP solution is not yet integral, because it still has <b>${fracCount}</b> fractional integer variable${fracCount === 1 ? '' : 's'}.`
+      : `Node <b>P${frame.current_id}</b> was processed because the current node-selection policy is <b>${labelFor('strategy', strategy)}</b>. Its LP relaxation is now solved, and it has <b>${fracCount}</b> fractional integer variable${fracCount === 1 ? '' : 's'} to analyze.`;
+  } else if (frame.event === 'branch') {
+    const groups = info.branch_groups || [];
+    if (groups.length > 1) {
+      html = `This is an <b>experimental multi-branch</b> step. Instead of expanding only the top branching variable, the solver expands the top <b>${groups.length}</b> fractional candidates from the same parent node. This is useful for teaching search behavior, but it is <b>not</b> a rigorous branch-and-bound partition.`;
+    } else {
+      const child = info.child_selection || {};
+      const firstNode = child.preferred === 'down' ? info.left_id : info.right_id;
+      html = `We branch on <b>${info.bvar}</b> because it ranked highest under <b>${labelFor('branching_rule', info.branching_rule)}</b>. The solver will inspect <b>P${firstNode}</b> first because the child policy <b>${labelFor('child_selection', child.rule)}</b> preferred the <b>${child.preferred || 'chosen'}</b> direction.`;
+    }
+  } else if (frame.event === 'integer') {
+    html = `Node <b>P${frame.current_id}</b> is integer-feasible, so the LP solution is already a valid integer solution. ${info.is_new_best ? 'Because it improves the incumbent, it becomes the new best known primal solution.' : 'It does not improve the incumbent, so it is informative but not replacing the current best solution.'}`;
+  } else if (frame.event === 'prune_inf') {
+    html = `Node <b>P${frame.current_id}</b> is removed because its LP relaxation is <b>infeasible</b>. This means no integer-feasible solution can exist in that subtree.`;
+  } else if (frame.event === 'prune_bound') {
+    html = `Node <b>P${frame.current_id}</b> is removed by <b>bound pruning</b>: its LP bound is not strong enough to beat the incumbent, so exploring its descendants cannot improve the current best solution.`;
+  } else if (frame.event === 'done') {
+    html = `The search finishes because there are no open nodes left. At this point, the incumbent is certified optimal for the explored strategy run.`;
+  }
+  document.getElementById('why-step').innerHTML = html + buildMath(frame);
+}
+
+function renderCounterfactuals(frame) {
+  const box = document.getElementById('counterfactuals');
+  if (!frame.queue || !frame.queue.length) {
+    box.innerHTML = `<div class="empty-note">No open nodes are waiting in the queue, so there is no alternative node-selection decision to compare.</div>`;
+    return;
+  }
+  const strategies = [
+    'depth_first_search',
+    'best_first_search',
+    'best_estimate_search',
+    'best_first_search_with_plunging'
+  ].filter(s => canonicalStrategy(s) !== canonicalStrategy(activeRun().strategy));
+  const items = strategies.map(strategy => {
+    const queueNodes = (frame.queue || []).map(id => frame.nodes[String(id)]).filter(Boolean);
+    if (!queueNodes.length) return null;
+    let chosen = null;
+    let metric = null;
+    if (strategy === 'depth_first_search') {
+      chosen = queueNodes[0];
+      metric = -chosen.depth;
+    } else {
+      chosen = queueNodes.slice().sort((a, b) => selectionMetric(b, strategy) - selectionMetric(a, strategy))[0];
+      metric = selectionMetric(chosen, strategy);
+    }
+    return {strategy, chosen, metric};
+  }).filter(Boolean);
+  box.innerHTML = items.map(item => `
+    <div class="counter-item">
+      <div class="counter-head">
+        <span>${labelFor('strategy', item.strategy)}</span>
+        <span>${item.chosen ? `would pick P${item.chosen.id}` : '—'}</span>
+      </div>
+      <div class="counter-detail">
+        ${item.chosen
+          ? `At this step, ${labelFor('strategy', item.strategy)} would choose <b>P${item.chosen.id}</b> with ${selectionLabel(item.metric, item.strategy)}.`
+          : 'This strategy has no eligible open node at this moment.'}
+      </div>
+    </div>
+  `).join('');
+}
+
+function renderFormulaCard(frame) {
+  const box = document.getElementById('formula-card');
+  const info = frame.info || {};
+  if (frame.event === 'branch') {
+    const items = info.candidate_details || [];
+    const selected = items[0];
+    const child = info.child_selection || {};
+    const formulas = [];
+    if (selected && items.length > 1) {
+      formulas.push({
+        title: 'Selection',
+        value: `${selected.var} chosen`,
+        detail: `${selected.var} was chosen because it has the best ${selected.score_label || 'branching'} score among ${items.length} fractional candidates under ${labelFor('branching_rule', info.branching_rule)}.`,
+        code: `${selected.var}: ${fmt(selected.score, 4)} >= ${items.slice(1).map(item => `${item.var}: ${fmt(item.score, 4)}`).join(' >= ')}`
+      });
+    }
+    if (items.length) {
+      for (const item of items) {
+        const isChosen = selected && item.var === selected.var;
+        if (info.branching_rule === 'most_fractional') {
+          const down = item.value - Math.floor(item.value);
+          const up = Math.ceil(item.value) - item.value;
+          formulas.push({
+            title: `Fractionality score`,
+            value: isChosen ? `${item.var} chosen` : item.var,
+            detail: isChosen
+              ? 'This variable has the largest distance-to-integer score, so it is selected for branching.'
+              : 'This candidate was evaluated but did not beat the chosen variable.',
+            code: `phi(${item.var}) = min(${fmt(down, 4)}, ${fmt(up, 4)}) = ${fmt(item.score, 4)}`
+          });
+        } else if (info.branching_rule === 'pseudocost' || info.branching_rule === 'reliability' || info.branching_rule === 'pseudocost_strong_init') {
+          formulas.push({
+            title: isChosen ? 'Chosen estimate' : 'Branching estimate',
+            value: isChosen ? `${item.var} chosen` : item.var,
+            detail: isChosen
+              ? `This variable ranked first under ${labelFor('branching_rule', info.branching_rule)}. ${item.detail || ''}`
+              : item.detail || 'Directional pseudocosts estimate the cost of enforcing integrality.',
+            code: branchingScoreFormula(item, info.branching_rule)
+          });
+        } else {
+          formulas.push({
+            title: isChosen ? 'Chosen probe' : 'Branching probe',
+            value: isChosen ? `${item.var} chosen` : item.var,
+            detail: isChosen
+              ? `This variable ranked first under ${labelFor('branching_rule', info.branching_rule)}. ${item.detail || ''}`
+              : item.detail || 'The rule scores candidates using stronger LP-based information.',
+            code: branchingScoreFormula(item, info.branching_rule)
+          });
+        }
+      }
+    } else if (selected) {
+      if (info.branching_rule === 'most_fractional') {
+        const down = selected.value - Math.floor(selected.value);
+        const up = Math.ceil(selected.value) - selected.value;
+        formulas.push({
+          title: 'Branching score',
+          value: `${selected.var} wins`,
+          detail: 'Most fractional branching ranks variables by distance from the nearest integer.',
+          code: `phi(${selected.var}) = min(${fmt(down, 4)}, ${fmt(up, 4)}) = ${fmt(selected.score, 4)}`
+        });
+      } else if (info.branching_rule === 'pseudocost' || info.branching_rule === 'reliability' || info.branching_rule === 'pseudocost_strong_init') {
+        formulas.push({
+          title: 'Branching estimate',
+          value: `${selected.var} wins`,
+          detail: selected.detail || 'Directional pseudocosts estimate the cost of enforcing integrality.',
+          code: branchingScoreFormula(selected, info.branching_rule)
+        });
+      } else {
+        formulas.push({
+          title: 'Branching probe',
+          value: `${selected.var} wins`,
+          detail: selected.detail || 'The rule scores candidates using stronger LP-based information.',
+          code: branchingScoreFormula(selected, info.branching_rule)
+        });
+      }
+    }
+    if (child.rule) {
+      let code = child.reason || 'Directional child preference.';
+      if (child.rule === 'pseudocost') {
+        code = `min(Psi^- f^-, Psi^+ f^+) = min(${fmt(child.down_estimate, 4)}, ${fmt(child.up_estimate, 4)}) -> ${child.preferred}`;
+      } else if (child.rule === 'lp_value') {
+        code = `f^- = ${fmt((info.bval || 0) - Math.floor(info.bval || 0), 4)}, f^+ = ${fmt(Math.ceil(info.bval || 0) - (info.bval || 0), 4)} -> ${child.preferred}`;
+      } else if (child.rule === 'root_lp_value') {
+        code = `${info.bvar} = ${fmt(info.bval, 4)}, root = ${fmt(child.root_value, 4)} -> ${child.preferred}`;
+      } else if (child.rule === 'inference' || child.rule === 'hybrid_inference_root_lp') {
+        code = `down = ${fmt(child.down_inference, 4)}, up = ${fmt(child.up_inference, 4)} -> ${child.preferred}`;
+      }
+      formulas.push({
+        title: 'Child ordering',
+        value: `${child.preferred} first`,
+        detail: child.reason || 'This determines which child is explored first.',
+        code
+      });
+    }
+    box.innerHTML = formulas.map(item => `
+      <div class="formula-item">
+        <div class="formula-head"><span>${item.title}</span><span>${item.value}</span></div>
+        <div class="formula-detail">${item.detail}</div>
+        <div class="formula-code">${item.code}</div>
+      </div>
+    `).join('');
+    return;
+  }
+  if (frame.event === 'lp_solved') {
+    const rows = fractionalityRows(frame).slice(0, 3);
+    box.innerHTML = rows.length ? rows.map(row => `
+      <div class="formula-item">
+        <div class="formula-head"><span>Fractionality</span><span>${row.var}</span></div>
+        <div class="formula-detail">This variable is still fractional in the LP relaxation.</div>
+        <div class="formula-code">phi(${row.var}) = min(${fmt(row.down, 4)}, ${fmt(row.up, 4)}) = ${fmt(row.frac, 4)}</div>
+      </div>
+    `).join('') : `<div class="empty-note">The current LP solution is already integral, so there is no fractionality formula to show.</div>`;
+    return;
+  }
+  if (frame.event === 'prune_bound') {
+    box.innerHTML = `
+      <div class="formula-item">
+        <div class="formula-head"><span>Bound test</span><span>prune</span></div>
+        <div class="formula-detail">For maximization, the subtree is discarded when the LP bound cannot beat the incumbent.</div>
+        <div class="formula-code">${fmt(info.lp_val, 4)} <= ${fmt(info.best_val, 4)}</div>
+      </div>
+    `;
+    return;
+  }
+  box.innerHTML = `<div class="empty-note">A rule-specific numeric card appears when the current step uses a scoring rule or a pruning inequality.</div>`;
+}
+
+function branchingScoreFormula(item, branchingRule) {
+  if (item == null || item.score == null) return '';
+  if (branchingRule === 'most_fractional') {
+    const down = item.value - Math.floor(item.value);
+    const up = Math.ceil(item.value) - item.value;
+    return `phi(${item.var}) = min(${fmt(down, 4)}, ${fmt(up, 4)}) = ${fmt(item.score, 4)}`;
+  }
+  if (branchingRule === 'strong' || branchingRule === 'hybrid_strong_pseudocost') {
+    return `score(${item.var}) = max(${fmt(item.left_gain, 4)}, ${fmt(EPS, 6)}) * max(${fmt(item.right_gain, 4)}, ${fmt(EPS, 6)}) = ${fmt(item.score, 4)}`;
+  }
+  if (branchingRule === 'pseudocost' || branchingRule === 'pseudocost_strong_init') {
+    const downCount = Math.max(item.down_count ?? 0, 1);
+    const upCount = Math.max(item.up_count ?? 0, 1);
+    return `score(${item.var}) = (${fmt(item.down_score ?? 0, 4)} * ${downCount} + ${fmt(item.up_score ?? 0, 4)} * ${upCount}) / (${downCount} + ${upCount}) = ${fmt(item.score, 4)}`;
+  }
+  if (branchingRule === 'reliability') {
+    return (item.score_label || '').includes('reliability')
+      ? `score(${item.var}) = max(${fmt(item.left_gain, 4)}, ${fmt(EPS, 6)}) * max(${fmt(item.right_gain, 4)}, ${fmt(EPS, 6)}) = ${fmt(item.score, 4)}`
+      : `score(${item.var}) = (${fmt(item.down_score ?? 0, 4)} * ${Math.max(item.down_count ?? 0, 1)} + ${fmt(item.up_score ?? 0, 4)} * ${Math.max(item.up_count ?? 0, 1)}) / (${Math.max(item.down_count ?? 0, 1)} + ${Math.max(item.up_count ?? 0, 1)}) = ${fmt(item.score, 4)}`;
+  }
+  return `${item.score_label || 'score'}(${item.var}) = ${fmt(item.score, 4)}`;
+}
+
+function pseudocostState(frame, variable) {
+  const stats = frame && frame.info && frame.info.pseudocosts && frame.info.pseudocosts[variable];
+  return stats || null;
+}
+
+function averagePseudocost(stats) {
+  if (!stats) return null;
+  const downCount = Math.max(stats.down_count || 0, 1);
+  const upCount = Math.max(stats.up_count || 0, 1);
+  return ((stats.down_score || 0) * downCount + (stats.up_score || 0) * upCount) / (downCount + upCount);
+}
+
+function focusPseudocostVars(frame) {
+  const branchVars = ((frame.info && frame.info.candidate_details) || []).map(item => item.var);
+  const fracVars = (((frame.current_id != null ? frame.nodes[String(frame.current_id)] : null) || {}).frac_vars || []).map(item => item[0]);
+  const sampled = Object.entries((frame.info && frame.info.pseudocosts) || {})
+    .filter(([, stats]) => (stats.down_count || 0) + (stats.up_count || 0) > 0)
+    .sort((a, b) => ((b[1].down_count || 0) + (b[1].up_count || 0)) - ((a[1].down_count || 0) + (a[1].up_count || 0)))
+    .map(([variable]) => variable);
+  return [...new Set([...branchVars, ...fracVars, ...sampled])].slice(0, 6);
+}
+
+function renderPseudocostLearning(frame) {
+  const box = document.getElementById('pseudocost-learning');
+  const vars = focusPseudocostVars(frame);
+  if (!vars.length) {
+    box.innerHTML = `<div class="empty-note">No pseudocost samples have been collected yet. Strong or reliability branching will populate this panel once probes are run.</div>`;
+    return;
+  }
+  box.innerHTML = vars.map(variable => {
+    const stats = pseudocostState(frame, variable);
+    if (!stats) return '';
+    const avg = averagePseudocost(stats);
+    const totalSamples = (stats.down_count || 0) + (stats.up_count || 0);
+    const avgSeries = FRAMES.slice(0, cur + 1).map(f => averagePseudocost(pseudocostState(f, variable)));
+    const focusTag = ((frame.info && frame.info.candidate_details) || []).some(item => item.var === variable)
+      ? '<span class="tag">branch candidate</span>'
+      : ((((frame.current_id != null ? frame.nodes[String(frame.current_id)] : null) || {}).frac_vars || []).some(item => item[0] === variable)
+        ? '<span class="tag">fractional now</span>'
+        : '');
+    return `
+      <div class="learning-item">
+        <div class="learning-head"><span>${variable}</span><span>${focusTag}${focusTag ? ' ' : ''}avg ${fmt(avg, 4)}</span></div>
+        <div class="learning-detail">Directional pseudocosts estimate how expensive it is to branch ${variable} down versus up. As more probes are observed, these estimates become more reliable.</div>
+        <div class="learning-metrics">
+          <span class="k">Psi^-</span><span class="v">${fmt(stats.down_score, 4)} from ${stats.down_count || 0} samples</span>
+          <span class="k">Psi^+</span><span class="v">${fmt(stats.up_score, 4)} from ${stats.up_count || 0} samples</span>
+          <span class="k">Avg score</span><span class="v">${fmt(avg, 4)}</span>
+          <span class="k">Reliability</span><span class="v">${totalSamples === 0 ? 'uninitialized' : totalSamples < 4 ? 'still learning' : 'moderately informed'}</span>
+        </div>
+        <div class="formula-code">score(${variable}) = (${fmt(stats.down_score, 4)} * ${Math.max(stats.down_count || 0, 1)} + ${fmt(stats.up_score, 4)} * ${Math.max(stats.up_count || 0, 1)}) / (${Math.max(stats.down_count || 0, 1)} + ${Math.max(stats.up_count || 0, 1)}) = ${fmt(avg, 4)}</div>
+        <div class="learning-spark">${sparkline(avgSeries, 'var(--blue)', avgSeries.length - 1)}</div>
+      </div>
+    `;
+  }).join('');
+}
+
+function renderReliabilityState(frame) {
+  const box = document.getElementById('reliability-state');
+  const threshold = CFG.reliability_threshold || 2;
+  const items = (frame.info && frame.info.candidate_details) || [];
+  const currentRule = (frame.info && frame.info.branching_rule) || CFG.branching_rule;
+  if (!items.length) {
+    box.innerHTML = `<div class="empty-note">Reliability branching explanations appear on branch steps, once candidates are ranked.</div>`;
+    return;
+  }
+  box.innerHTML = items.map(item => {
+    const stats = pseudocostState(frame, item.var);
+    const sampleCount = stats ? (stats.down_count || 0) + (stats.up_count || 0) : 0;
+    const usedStrong = (item.score_label || '').includes('reliability');
+    const mode = currentRule === 'reliability'
+      ? (usedStrong ? 'strong probe' : 'pseudocost estimate')
+      : currentRule === 'strong'
+        ? 'strong probe'
+        : (currentRule === 'pseudocost' || currentRule === 'pseudocost_strong_init')
+          ? 'pseudocost estimate'
+          : labelFor('branching_rule', currentRule);
+    const explanation = currentRule === 'reliability'
+      ? (usedStrong
+          ? `${item.var} used a fresh strong probe because its accumulated sample count ${sampleCount} is below the reliability threshold ${threshold}.`
+          : `${item.var} used learned pseudocosts because its sample count ${sampleCount} reached the reliability threshold ${threshold}.`)
+      : `${item.var} is currently being scored by ${mode}.`;
+    return `
+      <div class="learning-item">
+        <div class="learning-head"><span>${item.var}</span><span><span class="tag">${mode}</span></span></div>
+        <div class="learning-detail">${explanation}</div>
+        <div class="learning-metrics">
+          <span class="k">Samples</span><span class="v">${sampleCount}</span>
+          <span class="k">Threshold</span><span class="v">${threshold}</span>
+          <span class="k">Down</span><span class="v">${stats ? `${fmt(stats.down_score, 4)} from ${stats.down_count || 0}` : '—'}</span>
+          <span class="k">Up</span><span class="v">${stats ? `${fmt(stats.up_score, 4)} from ${stats.up_count || 0}` : '—'}</span>
+          <span class="k">Score used</span><span class="v">${item.score_label || 'score'} = ${fmt(item.score, 4)}</span>
+        </div>
+        <div class="formula-code">${branchingScoreFormula(item, currentRule)}</div>
+      </div>
+    `;
+  }).join('');
+}
+
+function renderFractionalityView(frame) {
+  const box = document.getElementById('fractionality-view');
+  const rows = fractionalityRows(frame);
+  if (!rows.length) {
+    box.innerHTML = `<div class="empty-note">No current LP solution is available for fractionality analysis.</div>`;
+    return;
+  }
+  box.innerHTML = rows.map(row => `
+    <div class="frac-item">
+      <div class="frac-head">
+        <span>${row.var}</span>
+        <span>${fmt(row.value, 4)} · phi=${fmt(row.frac, 4)}</span>
+      </div>
+      <div class="frac-bar"><div class="frac-fill" style="width:${Math.max(2, row.frac * 200)}%"></div></div>
+      <div class="frac-detail">down distance ${fmt(row.down, 4)} · up distance ${fmt(row.up, 4)}</div>
+    </div>
+  `).join('');
+}
+
+function renderTeachingFocus(frame) {
+  const focus = document.getElementById('focus-banner');
+  let title = 'Key Idea';
+  let body = 'This frame shows a branch-and-bound decision.';
+  if (frame.event === 'lp_solved') {
+    title = 'Dual Bound';
+    body = teachingMode === 'intro'
+      ? 'An LP relaxation gives an optimistic bound. It tells us how good this subtree could still become before enforcing integrality.'
+      : 'The LP relaxation gives the node dual bound. Students should compare it against the incumbent to decide whether the subtree remains promising.';
+  } else if (frame.event === 'branch') {
+    title = 'Branching';
+    const brRule = (frame.info && frame.info.branching_rule) || CFG.branching_rule || '';
+    const ruleInsight = brRule === 'most_fractional'
+      ? ' <b>Most Fractional</b>: cheapest rule — picks the variable furthest from any integer.'
+      : brRule === 'strong'
+      ? ` <b>Strong Branching</b>: most expensive — solves ${(frame.info && frame.info.candidate_details || []).length * 2} probe LPs to pick the best variable.`
+      : brRule === 'pseudocost'
+      ? ' <b>Pseudocost</b>: uses past branching experience to estimate future bound improvement.'
+      : brRule === 'reliability'
+      ? ' <b>Reliability</b>: probes when data is sparse, uses pseudocosts when estimates are reliable.'
+      : brRule === 'hybrid_strong_pseudocost'
+      ? ' <b>Hybrid</b>: blends strong-branching probes with learned pseudocosts.'
+      : '';
+    body = teachingMode === 'intro'
+      ? `Branching splits one fractional decision into simpler child problems that move the search toward integrality.${ruleInsight}`
+      : `Branching resolves fractional ambiguity by creating children with tighter local bounds.${ruleInsight} Compare the selected variable with the rejected candidates.`;
+  } else if (frame.event === 'integer') {
+    title = 'Primal Improvement';
+    body = 'An integer-feasible LP solution is a genuine candidate solution. If it improves the incumbent, it strengthens the primal side of the search.';
+  } else if (frame.event === 'prune_inf') {
+    title = 'Infeasibility';
+    body = 'This subtree is dead because even its LP relaxation has no feasible point.';
+  } else if (frame.event === 'prune_bound') {
+    title = 'Bound Pruning';
+    body = 'This subtree is cut off because its LP bound cannot beat the current incumbent.';
+  } else if (frame.event === 'done') {
+    title = 'Optimality';
+    body = 'The queue is empty, so the incumbent is now proven optimal for this run.';
+  }
+  focus.innerHTML = `<div class="focus-title">${title}</div><div class="focus-body">${body}</div>`;
+}
+
+function renderNodeStory(frame) {
+  const box = document.getElementById('node-story');
+  const nodeId = frame.current_id != null ? `P${frame.current_id}` : 'this node';
+  const child = frame.info && frame.info.child_selection ? frame.info.child_selection : {};
+  const stages = [
+    {name:'Selected', done:['lp_solved','branch','integer','prune_inf','prune_bound','done'].includes(frame.event), current:frame.event === 'start', text:`${nodeId} is chosen from the frontier under ${labelFor('strategy', activeRun().strategy)}.`},
+    {name:'LP Solved', done:['branch','integer','prune_inf','prune_bound','done'].includes(frame.event), current:frame.event === 'lp_solved', text:`The LP relaxation is solved to produce a node bound and identify any fractional variables.`},
+    {name:'Candidates Scored', done:['branch','integer','prune_inf','prune_bound','done'].includes(frame.event) && !!((frame.info && frame.info.candidate_details) || []).length, current:frame.event === 'branch', text:`Fractional candidates are ranked by ${labelFor('branching_rule', (frame.info && frame.info.branching_rule) || CFG.branching_rule)}.`},
+    {name:'Child Order Chosen', done:frame.event === 'branch' && !!child.rule, current:false, text:child.rule ? `The child policy ${labelFor('child_selection', child.rule)} sends the solver ${child.preferred || 'chosen'} first.` : `The child-ordering policy will decide which child is explored first after branching.`},
+    {name:'Bound / Primal Impact', done:['integer','prune_bound','done'].includes(frame.event), current:['integer','prune_bound'].includes(frame.event), text:frame.event === 'integer' ? `This node produced an integer-feasible solution and may improve the incumbent.` : frame.event === 'prune_bound' ? `This node is removed because its LP bound cannot beat the incumbent.` : `The node's contribution will be judged against the incumbent and the global dual bound.`},
+    {name:'Queue Updated', done:['branch','integer','prune_inf','prune_bound','done'].includes(frame.event), current:frame.event === 'done', text:`After processing, the frontier is updated and the solver chooses what to inspect next.`},
+  ];
+  box.innerHTML = stages.map(stage => {
+    const label = stage.current ? 'now' : stage.done ? 'done' : 'next';
+    return `
+      <div class="learning-item">
+        <div class="learning-head"><span>${stage.name}</span><span><span class="tag">${label}</span></span></div>
+        <div class="learning-detail">${stage.text}</div>
+      </div>
+    `;
+  }).join('');
+}
+
+function plainEventLabel(ev) {
+  return BADGE[ev]?.[1] || ev;
+}
+
+function countFractionalVars(info) {
+  return ((info && info.frac_vars) || []).length;
+}
+
+function branchWinnerMargin(cands) {
+  if (!cands || cands.length < 2) return null;
+  const first = cands[0];
+  const second = cands[1];
+  if (first == null || second == null || first.score == null || second.score == null) return null;
+  return first.score - second.score;
+}
+
+function transcriptNarrative(frame, indexInEpisode, slice) {
+  const info = frame.info || {};
+  const nodeId = frame.current_id == null ? null : `P${frame.current_id}`;
+  const strategy = labelFor('strategy', activeRun().strategy);
+  const branchingRule = labelFor('branching_rule', info.branching_rule || CFG.branching_rule);
+  const child = info.child_selection || {};
+  const fracCount = countFractionalVars(info);
+  const cands = info.candidate_details || [];
+
+  if (frame.event === 'start') {
+    return `The run opens at the root. ${nodeId || 'P1'} enters the frontier, and the solver will follow ${strategy} search with ${branchingRule} branching until the tree is resolved.`;
+  }
+  if (frame.event === 'lp_solved') {
+    if (!fracCount) {
+      return `${nodeId || 'This node'} is evaluated by solving its LP relaxation. The relaxation is already integer-feasible, so no branching is needed at this point.`;
+    }
+    return `${nodeId || 'This node'} is evaluated by solving its LP relaxation. The bound is ${fmt(info.lp_val, 4)}, and the solution leaves ${fracCount} fractional integer variable${fracCount === 1 ? '' : 's'} — branching is required to enforce integrality.`;
+  }
+  if (frame.event === 'branch') {
+    const margin = branchWinnerMargin(cands);
+    const firstChild = child.preferred === 'down' ? `P${info.left_id}` : `P${info.right_id}`;
+    const winnerLine = cands.length
+      ? `${info.bvar} is chosen from ${cands.length} fractional candidate${cands.length === 1 ? '' : 's'} under ${branchingRule}.`
+      : `${info.bvar} is chosen under ${branchingRule}.`;
+    const marginLine = margin == null
+      ? ``
+      : ` It beats the next-best candidate by ${fmt(Math.abs(margin), 4)} score units.`;
+    const orderLine = child.rule
+      ? ` The child-ordering rule ${labelFor('child_selection', child.rule)} sends the solver to ${firstChild} first.`
+      : ``;
+    return `${winnerLine}${marginLine}${orderLine}`;
+  }
+  if (frame.event === 'integer') {
+    const incumbentLine = info.is_new_best
+      ? ` It improves the incumbent and tightens the primal bound to ${fmt(info.lp_val, 4)}.`
+      : ` It is feasible, but it does not improve the incumbent.`;
+    return `${nodeId || 'This node'} is already integer-feasible, so the LP solution is accepted as a complete MIP solution.${incumbentLine}`;
+  }
+  if (frame.event === 'prune_inf') {
+    return `${nodeId || 'This node'} is fathomed immediately because its LP relaxation is infeasible under the current bounds. That means the subtree cannot contain any feasible integer solution.`;
+  }
+  if (frame.event === 'prune_bound') {
+    return `${nodeId || 'This node'} is cut off by bound. Its LP value of ${fmt(info.lp_val, 4)} cannot beat the incumbent value ${fmt(info.best_val, 4)}, so exploring descendants would be wasted work.`;
+  }
+  if (frame.event === 'done') {
+    if (info.best_val != null) {
+      return `The frontier is now empty, so the incumbent is proven optimal. The run finishes with objective value ${fmt(info.best_val, 4)} after exploring ${info.total_nodes} node${info.total_nodes === 1 ? '' : 's'}.`;
+    }
+    return `The frontier is empty and no feasible integer solution was found, so the model is concluded infeasible for the integer problem.`;
+  }
+  const ordinal = indexInEpisode + 1;
+  return `Episode step ${ordinal} records the event ${plainEventLabel(frame.event)} for ${nodeId || 'the run'}.`;
+}
+
+function renderEpisodeTranscript(frame) {
+  const box = document.getElementById('episode-transcript');
+  const ep = currentEpisode();
+  if (!ep) {
+    box.innerHTML = `<div class="empty-note">No episode is available.</div>`;
+    return;
+  }
+  const slice = FRAMES.slice(ep.start, ep.end + 1);
+  const title = ep.current_id == null ? 'Global wrap-up' : `Node P${ep.current_id}`;
+  const intro = transcriptMode
+    ? `Transcript mode groups all contiguous frames for ${title} into one narrated solver episode.`
+    : `This panel retells the full episode for ${title} as a short guided explanation, even while frame navigation stays granular.`;
+  box.innerHTML = `
+    <div class="learning-item">
+      <div class="learning-head"><span>${title}</span><span>steps ${slice[0].step}–${slice[slice.length - 1].step}</span></div>
+      <div class="learning-detail">${intro}</div>
+    </div>
+    ${slice.map((f, idx) => `
+      <div class="learning-item">
+        <div class="learning-head"><span>${BADGE[f.event]?.[1] || f.event}</span><span>step ${f.step}</span></div>
+        <div class="learning-detail">${transcriptNarrative(f, idx, slice)}</div>
+      </div>
+    `).join('')}
+  `;
+}
+
+function frameAtIndex(run, indexLike) {
+  const frames = (run && run.frames) || [];
+  if (!frames.length) return null;
+  const idx = Math.max(0, Math.min(indexLike, frames.length - 1));
+  return frames[idx];
+}
+
+function secondaryFrameForCurrentStep() {
+  const run = secondaryRun();
+  if (!run || !run.frames || !run.frames.length) return null;
+  return frameAtIndex(run, cur);
+}
+
+function renderTimeline(frame) {
+  const box = document.getElementById('event-timeline');
+  const milestones = [
+    {key:'start', label:'Root queued', test:f => f.event === 'start'},
+    {key:'lp', label:'Root LP', test:f => f.event === 'lp_solved' && f.current_id === 1},
+    {key:'branch', label:'First branch', test:f => f.event === 'branch'},
+    {key:'inc', label:'First incumbent', test:f => f.event === 'integer' && f.info && f.info.is_new_best},
+    {key:'bound', label:'Bound prune', test:f => f.event === 'prune_bound'},
+    {key:'done', label:'Complete', test:f => f.event === 'done'},
+  ];
+  const found = milestones.map(m => {
+    const idx = FRAMES.findIndex(f => m.test(f));
+    return {...m, idx};
+  });
+  const currentIndex = cur;
+  const track = found.map(item => {
+    const state = item.idx >= 0 && item.idx < currentIndex ? 'done' : item.idx === currentIndex ? 'current' : '';
+    const meta = item.idx >= 0 ? `step ${FRAMES[item.idx].step}` : 'not yet';
+    return `<div class="timeline-item ${state}">
+      <div class="timeline-name">${item.label}</div>
+      <div class="timeline-meta">${meta}</div>
+    </div>`;
+  }).join('');
+  const currentStep = frame.step;
+  const nextMilestone = found.find(item => item.idx > currentIndex);
+  const summary = nextMilestone
+    ? `Current step: <b>${currentStep}</b>. Next milestone to watch: <b>${nextMilestone.label}</b>.`
+    : `Current step: <b>${currentStep}</b>. The main milestones for this run have all been reached.`;
+  box.innerHTML = `<div class="timeline-track">${track}</div><div class="timeline-summary">${summary}</div>`;
+}
+
+function renderDualComparison(frame) {
+  const box = document.getElementById('compare-dual');
+  const secondary = secondaryRun();
+  if (!secondary || !secondary.frames || !secondary.frames.length) {
+    box.innerHTML = `<div class="delta-empty">Add at least two strategy runs to comparison mode to unlock the side-by-side teaching view.</div>`;
+    return;
+  }
+  const otherFrame = secondaryFrameForCurrentStep();
+  const renderPane = (run, paneFrame, type) => {
+    const nd = paneFrame && paneFrame.current_id != null ? paneFrame.nodes[String(paneFrame.current_id)] : null;
+    return `<div class="compare-pane ${type}">
+      <div class="compare-pane-head">
+        <span class="compare-pane-title">${labelFor('strategy', run.strategy)}</span>
+        <span>step ${paneFrame ? paneFrame.step : '—'}</span>
+      </div>
+      <div class="compare-pane-body">
+        <span class="k">Event</span><span class="v">${paneFrame ? (BADGE[paneFrame.event]?.[1] || paneFrame.event) : '—'}</span>
+        <span class="k">Node</span><span class="v">${paneFrame && paneFrame.current_id != null ? `P${paneFrame.current_id}` : '—'}</span>
+        <span class="k">Incumbent</span><span class="v">${paneFrame && paneFrame.best_val != null ? fmt(paneFrame.best_val, 4) : 'none yet'}</span>
+        <span class="k">Queue</span><span class="v">${paneFrame && paneFrame.queue ? paneFrame.queue.length : 0}</span>
+        <span class="k">LP bound</span><span class="v">${nd && nd.lp_val != null ? fmt(nd.lp_val, 4) : '—'}</span>
+      </div>
+    </div>`;
+  };
+  const options = RUNS.map((run, idx) => {
+    if (idx === activeRunIndex) return '';
+    const sel = idx === secondaryRunIndex ? ' selected' : '';
+    return `<option value="${idx}"${sel}>${labelFor('strategy', run.strategy)}</option>`;
+  }).join('');
+  box.innerHTML = `
+    <div style="grid-column:1/-1;display:flex;justify-content:flex-end;align-items:center;gap:8px;">
+      <span class="mode-label">Compare Against</span>
+      <select class="compare-picker" id="compare-picker">${options}</select>
+    </div>
+    ${renderPane(activeRun(), frame, 'active')}
+    ${renderPane(secondary, otherFrame, 'secondary')}
+  `;
+  const picker = document.getElementById('compare-picker');
+  if (picker) {
+    picker.addEventListener('change', e => {
+      secondaryRunIndex = +e.target.value;
+      const other = secondaryFrameForCurrentStep();
+      if (other) renderTree(other, TREE_VIEWS.secondary);
+      renderTreeHeaders(FRAMES[cur]);
+      renderDualComparison(FRAMES[cur]);
+    });
+  }
+}
+
+function renderTreeHeaders(frame) {
+  document.getElementById('tree-main-label').textContent = labelFor('strategy', activeRun().strategy);
+  document.getElementById('tree-main-meta').textContent = `step ${frame.step}${frame.current_id != null ? ` · P${frame.current_id}` : ''}`;
+  const secondary = secondaryRun();
+  const otherFrame = secondaryFrameForCurrentStep();
+  document.getElementById('tree-secondary-label').textContent = secondary ? labelFor('strategy', secondary.strategy) : '—';
+  document.getElementById('tree-secondary-meta').textContent = otherFrame ? `step ${otherFrame.step}${otherFrame.current_id != null ? ` · P${otherFrame.current_id}` : ''}` : 'no comparison';
+}
+
+function renderBoundLogic(frame) {
+  const nd = frame.current_id != null ? frame.nodes[String(frame.current_id)] : null;
+  const nodeLp = nd && nd.lp_val != null ? nd.lp_val : null;
+  const dual = globalDualBound(frame);
+  const incumbent = frame.best_val;
+  const nodeMargin = absoluteGap(incumbent, nodeLp);
+  const gap = absoluteGap(incumbent, dual);
+  const relGap = relativeGap(incumbent, dual);
+  let note = 'No global primal-dual comparison is available yet.';
+  if (dual != null && incumbent == null) note = 'The search has a global dual bound from the active frontier, but no incumbent has been found yet.';
+  if (dual != null && incumbent != null) {
+    note = gap > 0
+      ? `The active frontier still leaves a global improvement window of <b>${fmt(gap, 4)}</b> over the incumbent.`
+      : `The global dual bound matches the incumbent, so optimality is proven.`;
+  }
+  if (nodeLp != null && incumbent != null && frame.event !== 'prune_inf') {
+    note += ` The current node's LP bound differs from the incumbent by <b>${fmt(nodeMargin, 4)}</b>.`;
+  }
+  if (frame.event === 'integer') note = 'The LP bound and the integer solution coincide at this node because the LP solution is integral.';
+  if (frame.event === 'prune_inf') note = 'Infeasible LP relaxations contribute no valid local bound, so this node drops out of the active frontier.';
+  document.getElementById('bound-grid').innerHTML = `
+    <div class="bound-cell">
+      <span class="bound-label">Global dual bound</span>
+      <span class="bound-value">${dual == null ? '—' : fmt(dual, 6)}</span>
+    </div>
+    <div class="bound-cell">
+      <span class="bound-label">Primal bound</span>
+      <span class="bound-value">${incumbent == null ? 'none yet' : fmt(incumbent, 6)}</span>
+    </div>
+    <div class="bound-cell">
+      <span class="bound-label">Absolute gap</span>
+      <span class="bound-value">${gap == null ? '—' : fmt(gap, 6)}</span>
+    </div>
+    <div class="bound-cell">
+      <span class="bound-label">Relative gap</span>
+      <span class="bound-value">${pct(relGap, 2)}</span>
+    </div>
+    <div class="bound-cell">
+      <span class="bound-label">Current node LP</span>
+      <span class="bound-value">${nodeLp == null ? '—' : fmt(nodeLp, 6)}</span>
+    </div>
+    <div class="bound-cell">
+      <span class="bound-label">Local decision</span>
+      <span class="bound-value">${frame.event === 'prune_bound' ? 'prune by bound' : frame.event === 'integer' ? 'update incumbent' : 'keep exploring'}</span>
+    </div>
+    <div class="bound-note">${note}</div>
+  `;
+}
+
+function renderWorkPanel(frame) {
+  const box = document.getElementById('work-panel');
+  const stats = (frame.info && frame.info.lp_stats) || null;
+  if (!stats) {
+    box.innerHTML = `<div class="empty-note">LP work statistics are not available in this trace.</div>`;
+    return;
+  }
+  const probeShare = stats.total_lp_solves > 0 ? 100 * stats.probe_lp_solves / stats.total_lp_solves : 0;
+  const candidates = (frame.info && frame.info.candidate_details) || [];
+  const strongLikeCount = candidates.filter(item => {
+    const label = item.score_label || '';
+    return label.includes('strong') || label.includes('reliability');
+  }).length;
+  const stepProbeLps = strongLikeCount * 2;
+  const stepNote = frame.event === 'branch'
+    ? (stepProbeLps > 0
+        ? `This branching decision evaluated <b>${strongLikeCount}</b> candidate${strongLikeCount === 1 ? '' : 's'} with <b>${stepProbeLps}</b> extra probe LP solve${stepProbeLps === 1 ? '' : 's'} before choosing <b>${frame.info.bvar}</b>.`
+        : `This branching decision reused learned estimates, so it did not need extra strong-branching probe LPs.`)
+    : `This frame reuses the cumulative LP accounting built up over the search so far.`;
+  const totalSeries = FRAMES.slice(0, cur + 1).map(f => (f.info && f.info.lp_stats && f.info.lp_stats.total_lp_solves) || null);
+  const probeSeries = FRAMES.slice(0, cur + 1).map(f => {
+    const lp = (f.info && f.info.lp_stats) || null;
+    return lp && lp.total_lp_solves > 0 ? 100 * lp.probe_lp_solves / lp.total_lp_solves : null;
+  });
+  box.innerHTML = `
+    <div class="learning-item">
+      <div class="learning-head"><span>Cumulative LP effort</span><span>${stats.total_lp_solves} solves</span></div>
+      <div class="learning-detail">Modern branch-and-bound is not just about which branch is best; it is also about how much LP work the solver is spending to make each decision.</div>
+      <div class="learning-metrics">
+        <span class="k">Total LPs</span><span class="v">${stats.total_lp_solves}</span>
+        <span class="k">Node LPs</span><span class="v">${stats.node_lp_solves}</span>
+        <span class="k">Probe LPs</span><span class="v">${stats.probe_lp_solves}</span>
+        <span class="k">Probe share</span><span class="v">${pct(probeShare, 2)}</span>
+      </div>
+      <div class="formula-code">probe share = ${stats.probe_lp_solves} / ${Math.max(stats.total_lp_solves, 1)} = ${pct(probeShare, 2)}</div>
+    </div>
+    <div class="learning-item">
+      <div class="learning-head"><span>Current decision cost</span><span>${stepProbeLps} probe LPs</span></div>
+      <div class="learning-detail">${stepNote}</div>
+      <div class="learning-spark">${sparkline(totalSeries, 'var(--accent)', totalSeries.length - 1)}</div>
+    </div>
+    <div class="learning-item">
+      <div class="learning-head"><span>Probe share over time</span><span>${pct(probeShare, 2)}</span></div>
+      <div class="learning-detail">High-quality branching rules like strong branching often improve decisions by spending more LP solves up front. This chart shows how much of the search effort is being devoted to probing.</div>
+      <div class="learning-spark">${sparkline(probeSeries, 'var(--warn)', probeSeries.length - 1)}</div>
+    </div>
+  `;
+}
+
+function renderFrontierBoard(frame) {
+  const box = document.getElementById('frontier-board');
+  const strategy = activeRun().strategy || START_INFO.strategy;
+  const currentNode = frame.current_id != null ? frame.nodes[String(frame.current_id)] : null;
+  const frontier = (frame.queue || [])
+    .map(id => frame.nodes[String(id)])
+    .filter(Boolean);
+  const board = [...new Map([currentNode, ...frontier].filter(Boolean).map(nd => [nd.id, nd])).values()]
+    .map(nd => ({nd, metric: selectionMetric(nd, strategy)}))
+    .filter(item => item.metric !== -Infinity)
+    .sort((a, b) => b.metric - a.metric)
+    .slice(0, 6);
+  if (!board.length) {
+    box.innerHTML = `<div class="empty-note">There is no active frontier to rank at this step.</div>`;
+    return;
+  }
+  const chosenIndex = board.findIndex(item => currentNode && item.nd.id === currentNode.id);
+  const explanation = currentNode
+    ? (chosenIndex === 0
+        ? `Under <b>${labelFor('strategy', strategy)}</b>, the current node <b>P${currentNode.id}</b> has the best frontier score, so it is selected next.`
+        : `The current node <b>P${currentNode.id}</b> is not the top-ranked frontier node under the static metric alone; this can happen because the queue shown is after selection and update, especially for structural strategies like DFS/BFS.`)
+    : `The board ranks open nodes by the active node-selection policy.`;
+  box.innerHTML = `
+    <div class="learning-item">
+      <div class="learning-head"><span>Why this node next?</span><span>${labelFor('strategy', strategy)}</span></div>
+      <div class="learning-detail">${explanation}</div>
+    </div>
+    ${board.map((item, idx) => `
+      <div class="learning-item">
+        <div class="learning-head"><span>#${idx + 1} · P${item.nd.id}${currentNode && item.nd.id === currentNode.id ? ' chosen' : ''}</span><span>${selectionLabel(item.metric, strategy)}</span></div>
+        <div class="learning-detail">
+          depth ${item.nd.depth} · status ${SLB[item.nd.status] || item.nd.status} · ${item.nd.lp_val == null ? 'LP not solved yet' : `LP ${fmt(item.nd.lp_val, 4)}`}
+        </div>
+      </div>
+    `).join('')}
+  `;
+}
+
+function renderAlternatives(frame) {
+  const box = document.getElementById('alt-list');
+  if (frame.event === 'branch') {
+    if ((frame.info.branch_groups || []).length > 1) {
+      const items = (frame.info.branch_groups || []).slice(1, 5);
+      box.innerHTML = items.length ? items.map(item => `
+        <div class="alt-item">
+          <div class="alt-head"><span>${item.var}</span><span>P${item.first_child_id} then P${item.second_child_id}</span></div>
+          <div class="alt-detail">This extra child pair was also enqueued from the same parent because experimental multi-branch mode expanded more than one branching candidate.</div>
+        </div>
+      `).join('') : `<div class="alt-empty">No extra multi-branch expansions were created.</div>`;
+      return;
+    }
+    const items = (frame.info.candidate_details || []).slice(1, 4);
+    if (!items.length) {
+      box.innerHTML = `<div class="alt-empty">No competing branching candidates were available.</div>`;
+      return;
+    }
+    box.innerHTML = items.map(item => `
+      <div class="alt-item">
+        <div class="alt-head"><span>${item.var}</span><span>${item.score == null ? '' : `${item.score_label}: ${fmt(item.score, 4)}`}</span></div>
+        <div class="alt-detail">${item.detail || 'Alternative branching candidate.'}</div>
+      </div>
+    `).join('');
+    return;
+  }
+
+  const strategy = activeRun().strategy || START_INFO.strategy;
+  const alternatives = (frame.queue || [])
+    .map(id => frame.nodes[String(id)])
+    .filter(Boolean)
+    .map(nd => ({nd, metric: selectionMetric(nd, strategy)}))
+    .sort((a, b) => b.metric - a.metric)
+    .slice(0, 3);
+
+  if (!alternatives.length) {
+    box.innerHTML = `<div class="alt-empty">There are no open alternative nodes at this step.</div>`;
+    return;
+  }
+
+  box.innerHTML = alternatives.map(({nd, metric}, idx) => `
+    <div class="alt-item">
+      <div class="alt-head"><span>P${nd.id}</span><span>${canonicalStrategy(strategy) === 'best_estimate_search' || canonicalStrategy(strategy) === 'interleaved_best_estimate_best_first_search' || canonicalStrategy(strategy) === 'hybrid_best_estimate_best_first_search' ? `score ${fmt(metric, 4)}` : nd.lp_val != null ? `LP ${fmt(nd.lp_val, 4)}` : `queue #${idx + 1}`}</span></div>
+      <div class="alt-detail">
+        ${canonicalStrategy(strategy) === 'depth_first_search' || canonicalStrategy(strategy) === 'breadth_first_search'
+          ? `This node remained in the queue because ${labelFor('strategy', strategy)} follows structural order rather than choosing it now.`
+          : `This node stayed open as an alternative candidate under ${labelFor('strategy', strategy)}.`}
+      </div>
+    </div>
+  `).join('');
+}
+
+function renderDeltas(frame) {
+  const box = document.getElementById('delta-list');
+  const prev = cur > 0 ? FRAMES[cur - 1] : null;
+  if (!prev) {
+    box.innerHTML = `<div class="delta-empty">This is the first frame, so there is no previous step to compare against.</div>`;
+    return;
+  }
+  const prevNodes = prev.nodes || {};
+  const currNodes = frame.nodes || {};
+  const added = Object.keys(currNodes).filter(id => !prevNodes[id]).map(id => `P${id}`);
+  const changed = Object.keys(currNodes).filter(id => prevNodes[id] && prevNodes[id].status !== currNodes[id].status)
+    .map(id => `P${id}: ${prevNodes[id].status} → ${currNodes[id].status}`);
+  const queueDelta = (frame.queue || []).length - (prev.queue || []).length;
+  const bestDelta = prev.best_val !== frame.best_val && frame.best_val != null
+    ? `Incumbent improved from ${prev.best_val == null ? 'none' : prev.best_val} to ${frame.best_val}.`
+    : null;
+  const items = [];
+  if (added.length) items.push(`New nodes created: ${added.join(', ')}.`);
+  if (changed.length) items.push(...changed);
+  if (queueDelta !== 0) items.push(`Queue size changed from ${(prev.queue || []).length} to ${(frame.queue || []).length}.`);
+  if (bestDelta) items.push(bestDelta);
+  if (!items.length) {
+    box.innerHTML = `<div class="delta-empty">No major structural change from the previous frame.</div>`;
+    return;
+  }
+  box.innerHTML = items.map(item => `<div class="delta-item">${item}</div>`).join('');
+}
+
+function sparkline(values, color, highlightIndex) {
+  const W = 280, H = 44, P = 4;
+  const clean = values.map(v => (v == null || !isFinite(v) ? null : Number(v)));
+  const nonNull = clean.filter(v => v != null);
+  if (!nonNull.length) {
+    return `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none"></svg>`;
+  }
+  const min = Math.min(...nonNull);
+  const max = Math.max(...nonNull);
+  const span = Math.max(max - min, 1e-9);
+  const pts = clean.map((v, i) => {
+    if (v == null) return null;
+    const x = P + (i * (W - 2 * P)) / Math.max(clean.length - 1, 1);
+    const y = H - P - ((v - min) / span) * (H - 2 * P);
+    return [x, y];
+  });
+  const path = pts.filter(Boolean).map((p, i) => `${i === 0 ? 'M' : 'L'}${p[0]} ${p[1]}`).join(' ');
+  const hi = pts[Math.max(0, Math.min(highlightIndex, pts.length - 1))];
+  const circle = hi ? `<circle cx="${hi[0]}" cy="${hi[1]}" r="3" fill="${color}" />` : '';
+  return `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none"><path d="${path}" fill="none" stroke="${color}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>${circle}</svg>`;
+}
+
+function sparklineMarked(values, color, highlightIndex, markerIndices, markerColor) {
+  const W = 280, H = 44, Pad = 4;
+  const clean = values.map(v => (v == null || !isFinite(v) ? null : Number(v)));
+  const nonNull = clean.filter(v => v != null);
+  if (!nonNull.length) return `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none"></svg>`;
+  const mn = Math.min(...nonNull), mx = Math.max(...nonNull);
+  const span = Math.max(mx - mn, 1e-9);
+  const pts = clean.map((v, i) => {
+    if (v == null) return null;
+    const x = Pad + (i * (W - 2 * Pad)) / Math.max(clean.length - 1, 1);
+    const y = H - Pad - ((v - mn) / span) * (H - 2 * Pad);
+    return [x, y];
+  });
+  const path = pts.filter(Boolean).map((p, i) => `${i === 0 ? 'M' : 'L'}${p[0]} ${p[1]}`).join(' ');
+  const hi = pts[Math.max(0, Math.min(highlightIndex, pts.length - 1))];
+  const circle = hi ? `<circle cx="${hi[0]}" cy="${hi[1]}" r="3" fill="${color}" />` : '';
+  const mc = markerColor || 'var(--good)';
+  const markers = (markerIndices || []).map(mi => {
+    const mp = pts[Math.max(0, Math.min(mi, pts.length - 1))];
+    return mp ? `<circle cx="${mp[0]}" cy="${mp[1]}" r="4.5" fill="${mc}" stroke="var(--bg)" stroke-width="1.5" opacity="0.9"/>` : '';
+  }).join('');
+  return `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none"><path d="${path}" fill="none" stroke="${color}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>${markers}${circle}</svg>`;
+}
+
+function renderCharts() {
+  const chartBox = document.getElementById('chart-stack');
+  const upto = FRAMES.slice(0, cur + 1);
+  const incumbent = upto.map(f => f.best_val);
+  const dualBounds = upto.map(f => globalDualBound(f));
+  const relGaps = upto.map((f, idx) => relativeGap(incumbent[idx], dualBounds[idx]));
+  const queueSizes = upto.map(f => (f.queue || []).length);
+  const selectedLp = upto.map(f => {
+    const nd = f.current_id != null ? f.nodes[String(f.current_id)] : null;
+    return nd && nd.lp_val != null ? nd.lp_val : null;
+  });
+  chartBox.innerHTML = `
+    <div class="mini-chart">
+      <div class="mini-chart-head"><span>Primal bound vs step</span><span>${incumbent[cur] == null ? 'none yet' : incumbent[cur]}</span></div>
+      ${sparklineMarked(incumbent, 'var(--good)', cur, upto.map((f,i)=>f.event==='integer'&&f.info&&f.info.is_new_best?i:-1).filter(i=>i>=0), 'var(--good)')}
+      <div style="font-size:.6rem;color:var(--muted);padding:2px 2px 4px;line-height:1.4">Dots mark incumbent improvements. Each step up means a better integer solution was found.</div>
+    </div>
+    <div class="mini-chart">
+      <div class="mini-chart-head"><span>Dual bound vs step</span><span>${dualBounds[cur] == null ? '—' : fmt(dualBounds[cur], 4)}</span></div>
+      ${sparkline(dualBounds, 'var(--accent)', cur)}
+    </div>
+    <div class="mini-chart">
+      <div class="mini-chart-head"><span>Relative gap vs step</span><span>${pct(relGaps[cur], 2)}</span></div>
+      ${sparkline(relGaps, 'var(--warn)', cur)}
+    </div>
+    <div class="mini-chart">
+      <div class="mini-chart-head"><span>Queue size vs step</span><span>${queueSizes[cur]}</span></div>
+      ${sparkline(queueSizes, 'var(--blue)', cur)}
+    </div>
+    <div class="mini-chart">
+      <div class="mini-chart-head"><span>Selected node LP bound</span><span>${selectedLp[cur] == null ? '—' : fmt(selectedLp[cur], 4)}</span></div>
+      ${sparkline(selectedLp, 'var(--accent)', cur)}
+    </div>
+  `;
+}
+
+function applyTeachingVisibility() {
+  const whyCard = document.getElementById('why-step').closest('.panel-card');
+  const storyCard = document.getElementById('node-story').closest('.panel-card');
+  const transcriptCard = document.getElementById('episode-transcript').closest('.panel-card');
+  const counterCard = document.getElementById('counterfactuals').closest('.panel-card');
+  const compareCard = document.getElementById('compare-dual').closest('.panel-card');
+  const formulaCard = document.getElementById('formula-card').closest('.panel-card');
+  const learningCard = document.getElementById('pseudocost-learning').closest('.panel-card');
+  const reliabilityCard = document.getElementById('reliability-state').closest('.panel-card');
+  const fracCard = document.getElementById('fractionality-view').closest('.panel-card');
+  const workCard = document.getElementById('work-panel').closest('.panel-card');
+  const frontierCard = document.getElementById('frontier-board').closest('.panel-card');
+  const deltaCard = document.getElementById('delta-list').closest('.panel-card');
+  const chartCard = document.getElementById('chart-stack').closest('.panel-card');
+  const candidateCard = document.getElementById('branch-candidates').closest('.panel-card');
+  compareCard.style.display = RUNS.length > 1 ? '' : 'none';
+  whyCard.style.display = '';
+  storyCard.style.display = '';
+  transcriptCard.style.display = '';
+  counterCard.style.display = '';
+  formulaCard.style.display = '';
+  learningCard.style.display = teachingMode === 'intro' ? 'none' : '';
+  reliabilityCard.style.display = teachingMode === 'intro' ? 'none' : '';
+  fracCard.style.display = '';
+  workCard.style.display = teachingMode === 'intro' ? 'none' : '';
+  frontierCard.style.display = '';
+  deltaCard.style.display = teachingMode === 'intro' ? 'none' : '';
+  chartCard.style.display = teachingMode === 'research' ? '' : '';
+  candidateCard.style.display = teachingMode === 'intro' ? 'none' : '';
+}
+
+function renderConfig() {
+  const strategy = activeRun().strategy || CFG.strategy || TRACE.strategy || START_INFO.strategy;
+  const branchingRule = CFG.branching_rule || TRACE.branching_rule || START_INFO.branching_rule;
+  const childSelection = CFG.child_selection || START_INFO.child_selection;
+  const meta = document.getElementById('header-meta');
+  meta.innerHTML = [
+    `<span class="meta-chip"><b>${labelFor('strategy', strategy)}</b></span>`,
+    `<span class="meta-chip"><b>${labelFor('branching_rule', branchingRule)}</b></span>`,
+    `<span class="meta-chip"><b>${labelFor('child_selection', childSelection)}</b></span>`,
+    `<span class="meta-chip">branch width <b>${CFG.experimental_multi_branch_width ?? 1}</b></span>`,
+    `<span class="meta-chip">vars <b>${CFG.n_vars ?? (P.var_names || []).length}</b></span>`,
+    `<span class="meta-chip">seed <b>${CFG.seed ?? '—'}</b></span>`,
+    `<span class="meta-chip">compare <b>${RUNS.length}</b></span>`
+  ].join('');
+  const warn = document.getElementById('exp-warning');
+  if ((CFG.experimental_multi_branch_width || 1) > 1) {
+    warn.innerHTML = `
+      <div class="warning-banner">
+        <div class="warning-title">Experimental Mode</div>
+        <div class="warning-body">
+          Multi-branch width is set to <b>${CFG.experimental_multi_branch_width}</b>. Each branching step may enqueue child pairs for multiple branching variables from the same parent.
+          These subproblems can overlap, so the resulting tree is <b>exploratory</b> and should not be interpreted as an exact branch-and-bound proof of optimality.
+        </div>
+      </div>
+    `;
+  } else {
+    warn.innerHTML = '';
+  }
+}
+
+function renderComparison() {
+  const strip = document.getElementById('compare-strip');
+  const tabs = RUNS.map((run, idx) => (
+    `<button class="run-tab ${idx === activeRunIndex ? 'active' : ''}" type="button" onclick="switchRun(${idx})">${labelFor('strategy', run.strategy)}</button>`
+  )).join('');
+  const cards = RUNS.map((run, idx) => {
+    const s = run.summary || {};
+    const incumbents = s.incumbents || [];
+    const incumbentHtml = incumbents.length
+      ? `<div class="inc-list">${incumbents.map(item => `
+          <div class="inc-item">
+            <div class="inc-head">step ${item.step} · P${item.node_id ?? '?'} · z=${item.value == null ? '—' : item.value}</div>
+            <div class="inc-sol">${Object.entries(item.solution || {}).map(([k, v]) => `${k}=${Math.round(v)}`).join('  ')}</div>
+          </div>
+        `).join('')}</div>`
+      : `<div class="inc-list"><div class="inc-empty">No improving incumbent recorded.</div></div>`;
+    return `
+      <div class="compare-card ${idx === activeRunIndex ? 'active' : ''}">
+        <div class="compare-title">${labelFor('strategy', run.strategy)}</div>
+        <div class="compare-main">z* ${s.best_val == null ? '—' : s.best_val}</div>
+        <div class="compare-meta">
+          <span class="k">nodes</span><span class="v">${s.total_nodes ?? '—'}</span>
+          <span class="k">steps</span><span class="v">${s.total_steps ?? '—'}</span>
+          <span class="k">1st inc.</span><span class="v">${s.first_incumbent_step ?? '—'}</span>
+          <span class="k">ints</span><span class="v">${s.integer_events ?? '—'}</span>
+          <span class="k">multi</span><span class="v">${s.experimental_multi_branch_events ?? 0}</span>
+        </div>
+        ${incumbentHtml}
+      </div>
+    `;
+  }).join('');
+  strip.innerHTML = `<div class="run-tabs">${tabs}</div><div class="compare-grid">${cards}</div>`;
+}
+
+function renderCandidates(frame) {
+  const box = document.getElementById('branch-candidates');
+  const items = (frame.info && frame.info.candidate_details) || ((frame.info && frame.info.candidates) || []).map((v, idx) => ({
+    rank: idx + 1,
+    var: v,
+    value: frame.nodes[String(frame.current_id)]?.lp_sol?.[v],
+    score: null,
+    score_label: '',
+    detail: 'Legacy trace: candidates are shown in the solver-provided order.'
+  }));
+  if (frame.event !== 'branch' || !items.length) {
+    box.innerHTML = `<div class="candidate-empty">Candidate ordering is shown when a branching decision is made.</div>`;
+    return;
+  }
+  const branchRule = (frame.info && frame.info.branching_rule) || '';
+  const branchGroups = (frame.info && frame.info.branch_groups) || [];
+  const selectedVars = new Set(branchGroups.map(g => g.var));
+  const maxScore = Math.max(...items.map(i => i.score ?? 0), EPS);
+  const isStrong = ['strong','hybrid_strong_pseudocost','reliability','pseudocost_strong_init'].includes(branchRule);
+  const isPseudo = ['pseudocost','pseudocost_strong_init','reliability','hybrid_strong_pseudocost'].includes(branchRule);
+
+  box.innerHTML = items.map(item => {
+    const isWinner = item.rank === 1;
+    const group = branchGroups.find(g => g.var === item.var);
+    const firstChildId = group ? group.first_child_id : null;
+    const secondChildId = group ? group.second_child_id : null;
+    const preferredDir = group ? group.preferred_child : null;
+
+    // Relative score bar
+    const scorePct = item.score != null ? Math.max(4, Math.round(100 * item.score / maxScore)) : 0;
+    const scoreBar = items.length > 1 && item.score != null ? `
+      <div style="margin-top:5px;display:grid;grid-template-columns:1fr auto;gap:6px;align-items:center">
+        <div style="height:5px;border-radius:999px;background:var(--panel3);overflow:hidden">
+          <div style="height:100%;width:${scorePct}%;background:${isWinner ? 'var(--accent)' : 'var(--muted2)'};border-radius:999px;opacity:${isWinner ? 1 : 0.5}"></div>
+        </div>
+        <span style="font-size:.6rem;color:${isWinner ? 'var(--accent)' : 'var(--muted2)'};min-width:26px;text-align:right">${Math.round(scorePct)}%</span>
+      </div>` : '';
+
+    // Fractionality number-line: marks where value sits between floor and ceil
+    let fracLine = '';
+    if (item.value != null) {
+      const fl = Math.floor(item.value), ce = Math.ceil(item.value);
+      const frac = item.value - fl;
+      const fracPct = Math.round(frac * 100);
+      const phi = Math.min(frac, 1 - frac);
+      fracLine = `
+        <div style="margin-top:6px;display:grid;grid-template-columns:auto 1fr auto;gap:5px;align-items:center;font-size:.63rem">
+          <span style="color:var(--warn)">${fl}</span>
+          <div style="position:relative;height:7px;border-radius:999px;background:var(--panel3)">
+            <div style="position:absolute;left:0;top:0;bottom:0;width:${fracPct}%;background:color-mix(in srgb,var(--warn) 60%,var(--bad));border-radius:999px;opacity:.5"></div>
+            <div style="position:absolute;left:${fracPct}%;top:50%;transform:translate(-50%,-50%);width:10px;height:10px;border-radius:999px;background:var(--bad);border:1.5px solid var(--bg)"></div>
+          </div>
+          <span style="color:var(--blue)">${ce}</span>
+        </div>
+        <div style="font-size:.6rem;color:var(--muted);text-align:center;margin-top:1px">value ${fmt(item.value,4)} · φ = ${fmt(phi,4)} · ${phi < 0.1 ? 'very close to integer' : phi > 0.4 ? 'highly fractional' : 'moderately fractional'}</div>`;
+    }
+
+    // Left/right LP-gain split bar (strong-type branching)
+    let gainSection = '';
+    if (isStrong && item.left_gain != null && item.right_gain != null) {
+      const maxGain = Math.max(item.left_gain, item.right_gain, EPS);
+      const leftPct = Math.round(48 * item.left_gain / maxGain);
+      const rightPct = Math.round(48 * item.right_gain / maxGain);
+      gainSection = `
+        <div style="margin-top:8px;border-top:1px solid var(--border);padding-top:6px">
+          <div style="font-size:.6rem;color:var(--muted2);letter-spacing:.06em;text-transform:uppercase;margin-bottom:4px">LP bound gain per branch direction</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;font-size:.62rem;margin-bottom:3px">
+            <span style="color:var(--warn)">⌊${item.var}⌋ = ${fl ?? '?'} · gain ${fmt(item.left_gain,3)}</span>
+            <span style="color:var(--blue);text-align:right">gain ${fmt(item.right_gain,3)} · ⌈${item.var}⌉ = ${ce ?? '?'}</span>
+          </div>
+          <div style="height:8px;border-radius:999px;background:var(--panel3);overflow:hidden;position:relative">
+            <div style="position:absolute;right:50%;top:0;bottom:0;width:${leftPct}%;background:var(--warn);border-radius:999px 0 0 999px;opacity:.85"></div>
+            <div style="position:absolute;left:50%;top:0;bottom:0;width:${rightPct}%;background:var(--blue);border-radius:0 999px 999px 0;opacity:.85"></div>
+            <div style="position:absolute;left:calc(50% - .5px);top:0;bottom:0;width:1px;background:var(--border)"></div>
+          </div>
+          <div style="font-size:.6rem;color:var(--muted);text-align:center;margin-top:3px">score = max(${fmt(item.left_gain,3)},ε) × max(${fmt(item.right_gain,3)},ε) = <b style="color:var(--accent)">${fmt(item.score,4)}</b></div>
+        </div>`;
+    }
+
+    // Pseudocost directional bars
+    let pseudoSection = '';
+    if (isPseudo && item.down_score != null && item.up_score != null) {
+      const maxPS = Math.max(item.down_score, item.up_score, EPS);
+      const downPct = Math.round(88 * (item.down_score || 0) / maxPS);
+      const upPct = Math.round(88 * (item.up_score || 0) / maxPS);
+      const preferDown = (item.down_score || 0) >= (item.up_score || 0);
+      pseudoSection = `
+        <div style="margin-top:8px;border-top:1px solid var(--border);padding-top:6px">
+          <div style="font-size:.6rem;color:var(--muted2);letter-spacing:.06em;text-transform:uppercase;margin-bottom:5px">Directional pseudocosts</div>
+          <div style="display:grid;grid-template-columns:52px 1fr 44px;gap:4px;align-items:center;margin-bottom:3px;font-size:.63rem">
+            <span style="color:var(--warn)">Ψ⁻ down</span>
+            <div style="height:5px;border-radius:999px;background:var(--panel3);overflow:hidden"><div style="height:100%;width:${downPct}%;background:var(--warn);opacity:.85;border-radius:999px"></div></div>
+            <span style="color:var(--muted);text-align:right">${fmt(item.down_score,3)} ×${item.down_count||0}</span>
+          </div>
+          <div style="display:grid;grid-template-columns:52px 1fr 44px;gap:4px;align-items:center;font-size:.63rem">
+            <span style="color:var(--blue)">Ψ⁺ up</span>
+            <div style="height:5px;border-radius:999px;background:var(--panel3);overflow:hidden"><div style="height:100%;width:${upPct}%;background:var(--blue);opacity:.85;border-radius:999px"></div></div>
+            <span style="color:var(--muted);text-align:right">${fmt(item.up_score,3)} ×${item.up_count||0}</span>
+          </div>
+          <div style="font-size:.6rem;color:var(--muted);margin-top:4px">Higher cost = harder direction. Score = min(Ψ⁻·f⁻, Ψ⁺·f⁺).</div>
+        </div>`;
+    }
+
+    // Child direction badge
+    const childInfo = firstChildId
+      ? `<div style="margin-top:3px;font-size:.63rem;color:var(--good)">→ explore P${firstChildId} <b>(${preferredDir})</b> first · P${secondChildId} second</div>`
+      : '';
+
+    return `
+      <div class="candidate ${isWinner ? 'top' : ''}">
+        <div class="candidate-line">
+          <span class="rank">${item.rank}</span>
+          <b>${item.var}</b>
+          ${selectedVars.has(item.var) ? '<span class="tag" style="border-color:var(--good);color:var(--good)">selected</span>' : ''}
+          <span class="score" style="font-size:.7rem">${item.score != null ? fmt(item.score,4) : ''}</span>
+        </div>
+        ${childInfo}
+        ${scoreBar}
+        ${fracLine}
+        ${gainSection}
+        ${pseudoSection}
+        <div class="detail" style="margin-top:5px">${item.detail || ''}</div>
+      </div>
+    `;
+  }).join('');
+}
+
+function renderDepthHistogram(frame) {
+  const box = document.getElementById('depth-hist');
+  if (!box) return;
+  const counts = {};
+  let maxDepth = 0;
+  Object.values(frame.nodes || {}).forEach(nd => {
+    const d = nd.depth;
+    if (!counts[d]) counts[d] = {open:0, pruned:0, integer:0, branched:0};
+    if (nd.status === 'integer') counts[d].integer++;
+    else if (nd.status === 'pruned_inf' || nd.status === 'pruned_bound') counts[d].pruned++;
+    else if (nd.status === 'branched') counts[d].branched++;
+    else counts[d].open++;
+    if (d > maxDepth) maxDepth = d;
+  });
+  const depths = Array.from({length: maxDepth + 1}, (_, i) => i);
+  const totals = depths.map(d => { const c = counts[d] || {}; return (c.open||0)+(c.pruned||0)+(c.integer||0)+(c.branched||0); });
+  const maxTotal = Math.max(...totals, 1);
+  const W = 260, H = 72;
+  const nBars = depths.length;
+  const barW = Math.max(3, Math.min(22, Math.floor((W - 8) / Math.max(nBars, 1)) - 2));
+  const bars = depths.map((d, i) => {
+    const c = counts[d] || {};
+    const total = totals[i];
+    const x = 4 + i * (barW + 2);
+    const prunedH = Math.round(((c.pruned||0) / maxTotal) * (H - 14));
+    const intH = Math.round(((c.integer||0) / maxTotal) * (H - 14));
+    const branchedH = Math.round(((c.branched||0) / maxTotal) * (H - 14));
+    const openH = Math.round(((c.open||0) / maxTotal) * (H - 14));
+    let y = H - 4;
+    let svgBars = '';
+    if (prunedH > 0) { y -= prunedH; svgBars += `<rect x="${x}" y="${y}" width="${barW}" height="${prunedH}" fill="var(--warn)" rx="1"/>` ; }
+    if (intH > 0) { y -= intH; svgBars += `<rect x="${x}" y="${y}" width="${barW}" height="${intH}" fill="var(--good)" rx="1"/>`; }
+    if (branchedH > 0) { y -= branchedH; svgBars += `<rect x="${x}" y="${y}" width="${barW}" height="${branchedH}" fill="var(--muted2)" rx="1" opacity=".5"/>`; }
+    if (openH > 0) { y -= openH; svgBars += `<rect x="${x}" y="${y}" width="${barW}" height="${openH}" fill="var(--blue)" rx="1" opacity=".8"/>`; }
+    return svgBars + `<text x="${x + barW/2}" y="${H + 2}" text-anchor="middle" font-size="6.5" fill="var(--muted2)" font-family="IBM Plex Mono,monospace">${d}</text>`;
+  }).join('');
+  const strategy = activeRun().strategy || START_INFO.strategy;
+  const dominated = totals.indexOf(Math.max(...totals));
+  const hint = teachingMode === 'intro'
+    ? `Most nodes cluster at depth ${dominated}. <span style="color:var(--blue)">Blue</span>=open · <span style="color:var(--good)">green</span>=integer · <span style="color:var(--warn)">orange</span>=pruned.`
+    : `Depth distribution at step ${frame.step}. Strategy <b>${labelFor('strategy', strategy)}</b> ${canonicalStrategy(strategy) === 'depth_first_search' ? 'tends to go deep before backtracking.' : canonicalStrategy(strategy) === 'breadth_first_search' ? 'explores level by level.' : 'balances depth and bound quality.'}`;
+  box.innerHTML = `<div style="padding:8px 14px 10px"><svg viewBox="0 0 ${W} ${H + 8}" style="width:100%;height:${H + 8}px;display:block"><g>${bars}</g></svg><div style="font-size:.65rem;color:var(--muted);line-height:1.55;margin-top:4px">${hint}</div></div>`;
+}
+
+function renderInfo(frame) {
+  const [bcls, blbl] = BADGE[frame.event] || ['b-st', frame.event];
+  const badge = document.getElementById('badge');
+  badge.className = 'bdg ' + bcls;
+  badge.textContent = blbl;
+  document.getElementById('snum').textContent = `Step ${frame.step}${frame.current_id != null ? ' · P' + frame.current_id : ''}`;
+  document.getElementById('desc').innerHTML = buildDesc(frame);
+  renderTeachingFocus(frame);
+  renderNodeStory(frame);
+  renderEpisodeTranscript(frame);
+  renderTimeline(frame);
+  renderDualComparison(frame);
+  renderWhyStep(frame);
+  renderCounterfactuals(frame);
+  renderFormulaCard(frame);
+  renderPseudocostLearning(frame);
+  renderReliabilityState(frame);
+  renderFractionalityView(frame);
+  renderBoundLogic(frame);
+  renderWorkPanel(frame);
+  renderFrontierBoard(frame);
+  renderDeltas(frame);
+  renderCharts();
+  applyTeachingVisibility();
+
+  const vnames = P.var_names;
+  const ncb = document.getElementById('ncb');
+  if (frame.current_id != null) {
+    const nd = frame.nodes[String(frame.current_id)];
+    if (nd) {
+      const bounds = vnames.map(v => {
+        const lo = nd.lb && nd.lb[v] != null ? nd.lb[v] : 0;
+        const hi = nd.ub && nd.ub[v] != null ? nd.ub[v] : '∞';
+        return `<span class="k">${v}</span><span class="v">[${lo}, ${hi}]</span>`;
+      }).join('');
+      let html = `<span class="k">Node</span><span class="v">P${nd.id}</span>`;
+      html += `<span class="k">Status</span><span class="v">${SLB[nd.status] || nd.status}</span>`;
+      html += `<span class="k">Depth</span><span class="v">${nd.depth}</span>`;
+      if (nd.lp_val != null) html += `<span class="k">LP bound</span><span class="accent">${nd.lp_val.toFixed(6)}</span>`;
+      if (nd.lp_sol && Object.keys(nd.lp_sol).length) {
+        html += `<span class="k">LP sol</span><span class="v">${vnames.map(v => `${v}=${nd.lp_sol[v].toFixed(3)}`).join('  ')}</span>`;
+      }
+      html += `<span class="dimline">Bounds</span>${bounds}`;
+      const parentNd = nd.parent_id != null ? frame.nodes[String(nd.parent_id)] : null;
+      if (parentNd) {
+        const tightened = vnames.filter(v => {
+          const clo = nd.lb[v] ?? 0, chi = nd.ub[v] ?? null;
+          const plo = parentNd.lb[v] ?? 0, phi = parentNd.ub[v] ?? null;
+          return clo !== plo || chi !== phi;
+        });
+        if (tightened.length) {
+          html += `<span class="dimline" style="margin-top:4px">Branch constraints vs P${nd.parent_id}</span>`;
+          for (const v of tightened) {
+            const lo = nd.lb[v] != null ? nd.lb[v] : 0;
+            const hi = nd.ub[v] != null ? nd.ub[v] : '∞';
+            const plo = parentNd.lb[v] != null ? parentNd.lb[v] : 0;
+            const phi = parentNd.ub[v] != null ? parentNd.ub[v] : '∞';
+            html += `<span class="k">${v}</span><span class="v">[${lo}, ${hi}] <span style="color:var(--muted2);font-size:.78em">← was [${plo}, ${phi}]</span></span>`;
+          }
+        }
+      }
+      ncb.innerHTML = html;
+    }
+  } else {
+    ncb.innerHTML = `<span class="k">Node</span><span class="v">—</span>`;
+  }
+
+  renderCandidates(frame);
+  renderAlternatives(frame);
+  renderDepthHistogram(frame);
+
+  const pz = document.getElementById('pzone');
+  if (frame.event === 'prune_inf') {
+    pz.innerHTML = `<div class="callout pi"><div class="ttl">Prune: infeasible</div>LP relaxation has no feasible solution under the current bounds.</div>`;
+  } else if (frame.event === 'prune_bound') {
+    pz.innerHTML = `<div class="callout pb"><div class="ttl">Prune: bound</div>LP bound ${fmt(frame.info.lp_val, 4)} is not better than incumbent ${fmt(frame.info.best_val, 4)}.</div>`;
+  } else {
+    pz.innerHTML = '';
+  }
+
+  const bv = document.getElementById('bval');
+  const bs = document.getElementById('bsol');
+  if (frame.best_val != null) {
+    bv.className = 'bval';
+    bv.textContent = 'z* = ' + frame.best_val;
+    bs.textContent = vnames.map(v => `${v} = ${frame.best_sol[v] ?? '?'}`).join('  ');
+  } else {
+    bv.className = 'bval none';
+    bv.textContent = 'none yet';
+    bs.textContent = '';
+  }
+
+  const qc = document.getElementById('qchips');
+  if (!frame.queue.length) {
+    qc.innerHTML = `<span class="qmt">empty — search complete</span>`;
+  } else {
+    const shown = frame.queue.slice(0, 12);
+    qc.innerHTML = shown.map(n => `<span class="qchip" onclick="seek(${lastFrameForNode(n)})">P${n}</span>`).join('')
+      + (frame.queue.length > 12 ? `<span class="qmt"> +${frame.queue.length - 12}</span>` : '');
+  }
+}
+
+function switchRun(idx) {
+  activeRunIndex = idx;
+  if (secondaryRunIndex === activeRunIndex) {
+    secondaryRunIndex = RUNS.findIndex((_, i) => i !== activeRunIndex);
+    if (secondaryRunIndex < 0) secondaryRunIndex = activeRunIndex;
+  }
+  FRAMES = RUNS[activeRunIndex].frames;
+  START_INFO = (FRAMES[0] && FRAMES[0].info) || {};
+  cur = 0;
+  tmr && clearInterval(tmr);
+  tmr = null;
+  const b = document.getElementById('bplay');
+  b.textContent = '▶ Play';
+  b.classList.remove('on');
+  lastTreeW = 0;
+  lastTreeH = 0;
+  renderConfig();
+  renderComparison();
+  apply(0);
+}
+
+const panel = document.getElementById('treepanel-main');
 panel.addEventListener('wheel', e => {
   e.preventDefault();
-  const rect  = panel.getBoundingClientRect();
-  const cx    = e.clientX - rect.left;
-  const cy    = e.clientY - rect.top;
-  const delta = e.deltaY < 0 ? 1.12 : 1/1.12;
-  zoomBy(delta, cx, cy);
+  const rect = panel.getBoundingClientRect();
+  zoomBy(e.deltaY < 0 ? 1.12 : 1 / 1.12, e.clientX - rect.left, e.clientY - rect.top);
 }, {passive:false});
-
-// drag pan
 panel.addEventListener('mousedown', e => {
   if (e.target.closest('[data-nid]')) return;
   panel.classList.add('panning');
-  panStart  = {x: e.clientX, y: e.clientY};
+  panStart = {x: e.clientX, y: e.clientY};
   panOrigin = {x: vpX, y: vpY};
 });
 window.addEventListener('mousemove', e => {
@@ -749,23 +3130,24 @@ window.addEventListener('mousemove', e => {
   applyVP();
 });
 window.addEventListener('mouseup', () => {
-  if (panStart) { panel.classList.remove('panning'); panStart = null; }
+  if (panStart) {
+    panel.classList.remove('panning');
+    panStart = null;
+  }
 });
 
-// touch pinch-zoom + pan
 let touches = null;
 panel.addEventListener('touchstart', e => {
   e.preventDefault();
   if (e.touches.length === 1) {
-    panStart  = {x: e.touches[0].clientX, y: e.touches[0].clientY};
+    panStart = {x: e.touches[0].clientX, y: e.touches[0].clientY};
     panOrigin = {x: vpX, y: vpY};
-    touches   = null;
+    touches = null;
   } else if (e.touches.length === 2) {
     panStart = null;
-    touches  = {
-      d: Math.hypot(e.touches[1].clientX-e.touches[0].clientX,
-                    e.touches[1].clientY-e.touches[0].clientY),
-      s: vpS,
+    touches = {
+      d: Math.hypot(e.touches[1].clientX - e.touches[0].clientX, e.touches[1].clientY - e.touches[0].clientY),
+      s: vpS
     };
   }
 }, {passive:false});
@@ -776,260 +3158,189 @@ panel.addEventListener('touchmove', e => {
     vpY = panOrigin.y + (e.touches[0].clientY - panStart.y);
     applyVP();
   } else if (e.touches.length === 2 && touches) {
-    const d   = Math.hypot(e.touches[1].clientX-e.touches[0].clientX,
-                           e.touches[1].clientY-e.touches[0].clientY);
-    const mx  = (e.touches[0].clientX+e.touches[1].clientX)/2;
-    const my  = (e.touches[0].clientY+e.touches[1].clientY)/2;
-    const r   = panel.getBoundingClientRect();
-    const cx  = mx-r.left, cy = my-r.top;
-    const ns  = Math.max(0.15, Math.min(4, touches.s * (d/touches.d)));
-    vpX = cx - (cx-vpX)*(ns/vpS);
-    vpY = cy - (cy-vpY)*(ns/vpS);
-    vpS = ns; applyVP();
+    const d = Math.hypot(e.touches[1].clientX - e.touches[0].clientX, e.touches[1].clientY - e.touches[0].clientY);
+    const mx = (e.touches[0].clientX + e.touches[1].clientX) / 2;
+    const my = (e.touches[0].clientY + e.touches[1].clientY) / 2;
+    const r = panel.getBoundingClientRect();
+    const cx = mx - r.left, cy = my - r.top;
+    const ns = Math.max(0.15, Math.min(4, touches.s * (d / touches.d)));
+    vpX = cx - (cx - vpX) * (ns / vpS);
+    vpY = cy - (cy - vpY) * (ns / vpS);
+    vpS = ns;
+    applyVP();
   }
 }, {passive:false});
 panel.addEventListener('touchend', () => { panStart = null; touches = null; });
 
-// zoom buttons
-document.getElementById('zin').addEventListener('click',  () => zoomBy(1.25));
+document.getElementById('zin').addEventListener('click', () => zoomBy(1.25));
 document.getElementById('zout').addEventListener('click', () => zoomBy(0.8));
 document.getElementById('zfit').addEventListener('click', () => {
-  lastTreeW = 0; lastTreeH = 0; // force refit
-  renderTree(FRAMES[cur]);
+  lastTreeW = 0;
+  lastTreeH = 0;
+  renderTree(FRAMES[cur], TREE_VIEWS.main);
 });
 
-// ── INFO PANEL ────────────────────────────────────────────────────────────────
-function buildDesc(frame) {
-  const ev = frame.event, info = frame.info;
-  const vnames = P.var_names, iv = new Set(P.integer_vars||[]);
+document.getElementById('theme-toggle').addEventListener('click', () => {
+  const body = document.body;
+  const next = body.dataset.theme === 'dark' ? 'light' : 'dark';
+  body.dataset.theme = next;
+  document.getElementById('theme-toggle').textContent = next === 'dark' ? 'Light Mode' : 'Dark Mode';
+  lastTreeW = 0;
+  lastTreeH = 0;
+  renderTree(FRAMES[cur], TREE_VIEWS.main);
+  const other = secondaryFrameForCurrentStep();
+  if (other) renderTree(other, TREE_VIEWS.secondary);
+  renderInfo(FRAMES[cur]);
+});
 
-  if (ev === 'start') {
-    const sm = {dfs:'Depth-First (LIFO)',best:'Best-First (LP bound)',bfs:'Breadth-First (FIFO)'};
-    return `Root <b>P1</b> queued.<br>Strategy: <b style="color:var(--amb)">${sm[info.strategy||'dfs']||info.strategy}</b>`;
+document.getElementById('math-toggle').addEventListener('click', () => {
+  showMath = !showMath;
+  const btn = document.getElementById('math-toggle');
+  btn.classList.toggle('on', showMath);
+  btn.textContent = showMath ? 'Hide Math' : 'Show Math';
+  renderInfo(FRAMES[cur]);
+});
+
+document.querySelectorAll('.mode-pill').forEach(btn => {
+  btn.addEventListener('click', () => {
+    teachingMode = btn.dataset.mode;
+    document.querySelectorAll('.mode-pill').forEach(el => el.classList.toggle('active', el === btn));
+    renderInfo(FRAMES[cur]);
+  });
+});
+
+document.getElementById('transcript-toggle').addEventListener('click', () => {
+  transcriptMode = !transcriptMode;
+  const btn = document.getElementById('transcript-toggle');
+  btn.classList.toggle('on', transcriptMode);
+  btn.textContent = transcriptMode ? 'Frame Mode' : 'Transcript Mode';
+  if (transcriptMode) {
+    applyEpisodeIndex(episodeIndexForFrame(cur));
+  } else {
+    apply(cur);
   }
+});
 
-  if (ev === 'lp_solved') {
-    const lv=info.lp_val, ls=info.lp_sol||{}, frv=info.frac_vars||[];
-    const rows = vnames.map(v => {
-      const val=ls[v]||0, is_i=iv.has(v), frac=is_i&&Math.abs(val-Math.round(val))>EPS;
-      const ic = frac ? '<span style="color:var(--red)">\u2717 frac</span>'
-                : is_i? '<span style="color:var(--tel)">\u2713</span>'
-                :       '<span style="color:var(--dim)">\u2014</span>';
-      const vc = frac?'var(--red)':is_i?'var(--tel)':'#7aaac0';
-      return `<tr><td><b>${v}</b></td><td style="color:${vc}">${val.toFixed(4)}</td>`
-            +`<td style="color:var(--dim)">${is_i?'int':'cont'}</td><td>${ic}</td></tr>`;
-    }).join('');
-    let h = '<table style="border-collapse:collapse;width:100%;font-size:.71em">'
-      +'<tr><th style="color:var(--dim);font-weight:400;padding:1px 5px">Var</th>'
-      +'<th style="color:var(--dim);font-weight:400;padding:1px 5px">Value</th>'
-      +'<th style="color:var(--dim);font-weight:400;padding:1px 5px">Type</th>'
-      +'<th style="color:var(--dim);font-weight:400;padding:1px 5px">OK?</th></tr>'
-      +rows
-      +`<tr><td style="padding-top:4px"><b style="color:var(--amb)">z_LP</b></td>`
-      +`<td style="color:var(--amb);font-weight:600">${lv.toFixed(6)}</td>`
-      +'<td></td><td></td></tr></table>';
-    if (frv.length) {
-      const fp = frv.map(([v,val])=>`<b style="color:var(--amb)">${v}</b>`
-        +`=<span style="color:var(--red)">${val.toFixed(3)}</span>`).join('  ');
-      h += `<div style="margin-top:5px;padding:5px 8px;border-left:2px solid var(--amb);`
-         + `background:rgba(232,160,32,.07);font-size:.71em">`
-         + `<span style="color:var(--amb);font-size:.64em;text-transform:uppercase;letter-spacing:.1em">Integrality</span><br>`
-         + `Frac: ${fp}<br><span style="color:var(--dim)">Branch on: `
-         + `<b style="color:var(--amb)">${frv[0][0]}</b>=${frv[0][1].toFixed(3)}</span></div>`;
-    }
-    return h;
-  }
-
-  if (ev === 'branch') {
-    const fv=info.bval-Math.floor(info.bval);
-    return `Branch on <b style="color:var(--amb)">${info.bvar}</b> = ${info.bval.toFixed(4)}`
-      +` (frac=<span style="color:var(--red)">${fv.toFixed(4)}</span>)<br><br>`
-      +`<span style="color:var(--tel)">\u25B8 LEFT &nbsp;P${info.left_id}</span>`
-      +`&nbsp;&nbsp;${info.bvar} \u2264 <b>${info.lo}</b>&nbsp;<span style="color:var(--dim)">(floor)</span><br>`
-      +`<span style="color:var(--amb)">\u25B8 RIGHT P${info.right_id}</span>`
-      +`&nbsp;&nbsp;${info.bvar} \u2265 <b>${info.hi}</b>&nbsp;<span style="color:var(--dim)">(ceil)</span>`;
-  }
-
-  if (ev === 'integer') {
-    const lv=info.lp_val, ls=info.lp_sol||{}, nb=info.is_new_best;
-    const sp = vnames.map(v=>`<span style="color:var(--dim)">${v}</span>`
-      +`=<b style="color:var(--tel)">${Math.round(ls[v])}</b>`).join('  ');
-    return `z=<b style="color:${nb?'var(--tel)':'var(--amb)'}">${lv.toFixed(6)}</b>`
-      +`&nbsp;&nbsp;${sp}<br>`
-      +(nb?'<b style="color:var(--tel)">\u{1F3C6} New incumbent!</b>'
-          :'<span style="color:var(--dim)">Does not improve best.</span>');
-  }
-
-  if (ev === 'prune_inf')
-    return 'LP has <b>no feasible solution</b> with these bounds.<br>'
-          +'<span style="color:var(--dim)">Entire subtree discarded.</span>';
-
-  if (ev === 'prune_bound') {
-    const lv2=(info.lp_val!=null)?info.lp_val.toFixed(4):'?';
-    const bv3=info.best_val!=null?info.best_val:'?';
-    return `z_LP=<b style="color:var(--amb)">${lv2}</b> \u2264 z*=<b style="color:var(--tel)">${bv3}</b><br>`
-          +'Cannot improve incumbent.<br>'
-          +'<span style="color:var(--dim)">Entire subtree discarded.</span>';
-  }
-
-  if (ev === 'done') {
-    const bv2=info.best_val, bs2=info.best_sol||{}, tn=info.total_nodes||'?';
-    if (bv2 != null) {
-      const sp=vnames.map(v=>`<span style="color:var(--dim)">${v}</span>`
-        +`=<b style="color:var(--tel)">${bs2[v]}</b>`).join('  ');
-      return `\u{1F3C6} <b>Optimal solution proven!</b><br>`
-        +`z*=<b style="color:var(--tel);font-size:1.2em">${bv2}</b>&nbsp;&nbsp;${sp}<br>`
-        +`<span style="color:var(--dim)">${tn} nodes \u00B7 gap = 0%</span>`;
-    }
-    return '<span style="color:var(--red)">No feasible integer solution.</span>';
-  }
-  return '';
-}
-
-function renderInfo(f) {
-  const ev=f.event, nid=f.current_id, info=f.info, vnames=P.var_names;
-  const [bcls,blbl,bic] = BADGE[ev] || ['b-st', ev, ''];
-  const bdg = document.getElementById('badge');
-  bdg.className = 'bdg '+bcls; bdg.textContent = blbl;
-  document.getElementById('snum').textContent =
-    bic+' Step '+f.step+(nid!=null?' \u00B7 P'+nid:'');
-  document.getElementById('desc').innerHTML = buildDesc(f);
-
-  // node card
-  const ncb = document.getElementById('ncb');
-  if (nid != null) {
-    const nd = f.nodes[String(nid)];
-    if (nd) {
-      const bp = vnames.map(v=>{
-        const lo=(nd.lb&&nd.lb[v]!=null)?nd.lb[v]:0;
-        const hi=(nd.ub&&nd.ub[v]!=null)?nd.ub[v]:'\u221e';
-        return `<span class="nck">${v}</span><span class="ncv">[${lo},${hi}]</span>`;
-      }).join('');
-      let h = `<span class="nck">Node</span><span class="ncv">P${nd.id}</span>`
-             +`<span class="nck">Status</span><span class="ncv">${nd.status}</span>`;
-      if (nd.lp_val!=null)
-        h += `<span class="nck">LP</span><span class="ncz">${nd.lp_val.toFixed(6)}</span>`;
-      if (nd.lp_sol&&Object.keys(nd.lp_sol).length)
-        h += `<span class="nck">Sol</span><span class="ncv">`
-           + vnames.map(v=>v+'='+nd.lp_sol[v].toFixed(3)).join('  ')+'</span>';
-      h += `<span class="ncsp" style="color:var(--dim);margin-top:2px;font-size:.63rem">${bp}</span>`;
-      ncb.innerHTML = h;
-    }
-  } else { ncb.innerHTML = '<span class="nck" style="color:var(--dim2)">\u2014</span>'; }
-
-  // pruning callout
-  const pz = document.getElementById('pzone');
-  if (ev === 'prune_inf')
-    pz.innerHTML='<div class="pbox pi"><div class="pttl">\u2702 Prune: Infeasible</div>'
-      +'LP has no solution with these bounds.<br>'
-      +'<span style="color:var(--dim)">Subtree discarded.</span></div>';
-  else if (ev === 'prune_bound') {
-    const lv2=(info.lp_val!=null)?info.lp_val.toFixed(4):'?';
-    const bv3=info.best_val!=null?info.best_val:'?';
-    pz.innerHTML='<div class="pbox pb"><div class="pttl">\u2702 Prune: Bound</div>'
-      +`z_LP=<b style="color:var(--amb)">${lv2}</b> \u2264 z*=<b style="color:var(--tel)">${bv3}</b><br>`
-      +'Cannot improve incumbent.<br>'
-      +'<span style="color:var(--dim)">Subtree discarded.</span></div>';
-  } else pz.innerHTML = '';
-
-  // best solution
-  const bv=document.getElementById('bval'), bs=document.getElementById('bsol');
-  if (f.best_val != null) {
-    bv.className='bval'; bv.textContent='z* = '+f.best_val;
-    bs.textContent=vnames.map(v=>v+' = '+(f.best_sol[v]??'?')).join('  ');
-  } else { bv.className='bval none'; bv.textContent='none yet'; bs.textContent=''; }
-
-  // queue chips (clickable — jump to that node's last step)
-  const qc = document.getElementById('qchips');
-  if (f.queue.length === 0)
-    qc.innerHTML='<span class="qmt">empty \u2014 search complete</span>';
-  else {
-    const shown = f.queue.slice(0,12);
-    qc.innerHTML = shown.map(n=>
-      `<span class="qchip" onclick="seek(${lastFrameForNode(n)})">P${n}</span>`
-    ).join('')+(f.queue.length>12?`<span class="qmt"> +${f.queue.length-12}</span>`:'');
-  }
-}
-
-// ── NAVIGATION STATE (hoisted so setSpeed / togPlay can reference them) ───────
 let cur = 0, tmr = null;
-
-// ── SPEED CONTROL ─────────────────────────────────────────────────────────────
-// Slider 1–10 maps to: 2.5s → 0.2s (non-linear, faster feels snappier)
-let playInterval = 1200; // ms
-
+let playInterval = 1200;
 function setSpeed(v) {
-  // v=1 → 2500ms (0.4×), v=5 → ~900ms (1×), v=10 → 200ms (5×)
-  const ms = Math.round(2500 / (0.4 + (v-1) * 0.4888));
+  const ms = Math.round(2500 / (0.4 + (v - 1) * 0.4888));
   playInterval = ms;
-  const xLabel = (1200/ms).toFixed(1);
-  document.getElementById('speed-lbl').textContent = xLabel + '\u00D7';
-  // if playing, restart timer with new speed
-  if (tmr) { clearInterval(tmr); tmr = setInterval(autoStep, playInterval); }
+  document.getElementById('speed-lbl').textContent = (1200 / ms).toFixed(1) + '×';
+  if (tmr) {
+    clearInterval(tmr);
+    tmr = setInterval(autoStep, playInterval);
+  }
 }
-// init label
 setSpeed(5);
 
-// ── NAVIGATION ────────────────────────────────────────────────────────────────
-
-function apply(i) {
-  i = Math.max(0, Math.min(i, FRAMES.length-1));
-  cur = i;
-  const tot = FRAMES.length-1;
-  document.getElementById('sl').max   = tot;
-  document.getElementById('sl').value = i;
-  document.getElementById('sctr').textContent = i+' / '+tot;
-  document.getElementById('bprev').disabled = (i===0);
-  document.getElementById('bnext').disabled = (i===tot);
-  renderTree(FRAMES[i]);
-  renderInfo(FRAMES[i]);
+function syncNavigationUI() {
+  const eps = episodes();
+  const epIdx = episodeIndexForFrame(cur);
+  const max = transcriptMode ? Math.max(eps.length - 1, 0) : Math.max(FRAMES.length - 1, 0);
+  const value = transcriptMode ? epIdx : cur;
+  document.getElementById('sl').max = max;
+  document.getElementById('sl').value = value;
+  if (transcriptMode && eps[epIdx]) {
+    const ep = eps[epIdx];
+    document.getElementById('sctr').textContent = `episode ${epIdx} / ${max} · steps ${FRAMES[ep.start].step}-${FRAMES[ep.end].step}`;
+  } else {
+    document.getElementById('sctr').textContent = `${cur} / ${max}`;
+  }
+  document.getElementById('bprev').disabled = value === 0;
+  document.getElementById('bnext').disabled = value === max;
 }
 
-function go(d)   { apply(cur+d); }
-function seek(i) { apply(+i); }
-
+function apply(i) {
+  i = Math.max(0, Math.min(i, FRAMES.length - 1));
+  cur = i;
+  syncNavigationUI();
+  const f = FRAMES[i];
+  const lps = (f.info && f.info.lp_stats && f.info.lp_stats.total_lp_solves) || 0;
+  const qlen = (f.queue || []).length;
+  const nnodes = Object.keys(f.nodes || {}).length;
+  const ls = document.getElementById('live-stats');
+  if (ls) ls.textContent = `Queue: ${qlen} | LPs: ${lps} | Nodes: ${nnodes}`;
+  renderTree(FRAMES[i], TREE_VIEWS.main);
+  const other = secondaryFrameForCurrentStep();
+  if (other) {
+    renderTree(other, TREE_VIEWS.secondary);
+  } else {
+    document.getElementById(TREE_VIEWS.secondary.vpId).innerHTML = '';
+    document.getElementById(TREE_VIEWS.secondary.dotId).innerHTML = '';
+  }
+  renderTreeHeaders(FRAMES[i]);
+  renderInfo(FRAMES[i]);
+}
+function applyEpisodeIndex(idx) {
+  const eps = episodes();
+  if (!eps.length) return;
+  const clamped = Math.max(0, Math.min(idx, eps.length - 1));
+  apply(eps[clamped].end);
+}
+function go(d) {
+  if (transcriptMode) {
+    applyEpisodeIndex(episodeIndexForFrame(cur) + d);
+    return;
+  }
+  apply(cur + d);
+}
+function seek(i) {
+  if (transcriptMode) {
+    applyEpisodeIndex(+i);
+    return;
+  }
+  apply(+i);
+}
 function autoStep() {
-  if (cur >= FRAMES.length-1) {
-    clearInterval(tmr); tmr=null;
-    const b=document.getElementById('bplay');
-    b.textContent='\u25B6 Play'; b.classList.remove('on');
+  const reachedEnd = transcriptMode
+    ? episodeIndexForFrame(cur) >= Math.max(episodes().length - 1, 0)
+    : cur >= FRAMES.length - 1;
+  if (reachedEnd) {
+    clearInterval(tmr);
+    tmr = null;
+    const b = document.getElementById('bplay');
+    b.textContent = '▶ Play';
+    b.classList.remove('on');
     return;
   }
   go(1);
 }
-
 function togPlay() {
-  const b=document.getElementById('bplay');
+  const b = document.getElementById('bplay');
   if (tmr) {
-    clearInterval(tmr); tmr=null;
-    b.textContent='\u25B6 Play'; b.classList.remove('on');
+    clearInterval(tmr);
+    tmr = null;
+    b.textContent = '▶ Play';
+    b.classList.remove('on');
   } else {
-    b.textContent='\u23F8 Pause'; b.classList.add('on');
+    b.textContent = '⏸ Pause';
+    b.classList.add('on');
     tmr = setInterval(autoStep, playInterval);
   }
 }
 
 document.addEventListener('keydown', e => {
-  if (e.key==='ArrowRight'||e.key==='ArrowDown')  { e.preventDefault(); go(+1); }
-  if (e.key==='ArrowLeft' ||e.key==='ArrowUp')    { e.preventDefault(); go(-1); }
-  if (e.key===' ')                                 { e.preventDefault(); togPlay(); }
-  if (e.key==='+' || e.key==='=')                  zoomBy(1.2);
-  if (e.key==='-')                                  zoomBy(0.8);
-  if (e.key==='Escape')                             hideTooltip();
-  if (e.key==='0' || e.key==='f') { lastTreeW=0; lastTreeH=0; renderTree(FRAMES[cur]); }
+  if (e.key === 'ArrowRight' || e.key === 'ArrowDown') { e.preventDefault(); go(1); }
+  if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') { e.preventDefault(); go(-1); }
+  if (e.key === ' ') { e.preventDefault(); togPlay(); }
+  if (e.key === '+' || e.key === '=') zoomBy(1.2);
+  if (e.key === '-') zoomBy(0.8);
+  if (e.key === 'Escape') hideTooltip();
+  if (e.key === '0' || e.key === 'f') { lastTreeW = 0; lastTreeH = 0; renderTree(FRAMES[cur], TREE_VIEWS.main); }
 });
 
-// ── INIT ──────────────────────────────────────────────────────────────────────
-const slabels = {dfs:'Depth-First (DFS)',best:'Best-First',bfs:'Breadth-First'};
-document.getElementById('pname').textContent  = P.name;
-document.getElementById('pobj').textContent   = P.display;
-document.getElementById('pstrat').textContent = slabels[TRACE.strategy]||TRACE.strategy;
-
-// Ensure SVG fills its container before first render
+document.getElementById('pname').textContent = P.name;
+document.getElementById('pobj').textContent = P.display;
+renderConfig();
+renderComparison();
 window.addEventListener('resize', () => {
-  lastTreeW=0; lastTreeH=0; renderTree(FRAMES[cur]);
+  lastTreeW = 0;
+  lastTreeH = 0;
+  renderTree(FRAMES[cur], TREE_VIEWS.main);
+  const other = secondaryFrameForCurrentStep();
+  if (other) renderTree(other, TREE_VIEWS.secondary);
 });
-
 apply(0);
 </script>
 </body>
